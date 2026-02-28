@@ -29,7 +29,7 @@ If a codeblock is fundamentally malformed or attempts an illegal sandbox breakou
 The sandbox automatically extracts variables out of the chat history and makes them available globally via the `state` object.
 
 ### 1. LLM Output Example
-If the second-to-last message from the bot says:
+If the last message from the bot (i.e. second-to-last message in chat history) says:
 ```text
 situation: gloom
 stamina - 4
@@ -37,10 +37,10 @@ stamina - 4
 
 ### 2. Personality Prompt
 You can write instructions in your bot's personality utilizing these variables directly:
-```text
+~~~
 In the current situation, {{char}} will act as follows:
 
-`\`\`javascript
+```javascript
 if (state.situation === null || state.situation === undefined) {
     console.log("she does not know the situation yet.");
 } else if (state.situation === "happy") {
@@ -53,8 +53,8 @@ if (state.situation === null || state.situation === undefined) {
 if (state.stamina < 5) {
     console.log("she is very tired.");
 }
-`\`\`
 ```
+~~~
 
 ## Usage
 The entry script located at `src/index.ts` automatically runs `evaluateMarkdownCodeBlocks` on the global Janitor AI `context`.
