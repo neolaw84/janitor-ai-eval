@@ -1,6 +1,6 @@
 {
     "name": "janitor-ai-eval",
-    "version": "1.0.0",
+    "version": "0.1.0-beta",
     "description": "Standalone custom AST javascript evaluator and snippet for the Janitor AI environment",
     "main": "dist/bundle.js",
     "scripts": {
