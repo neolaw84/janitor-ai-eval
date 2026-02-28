@@ -1,0 +1,20 @@
+{
+    "name": "janitor-ai-eval",
+    "version": "1.0.0",
+    "description": "Standalone custom AST javascript evaluator and snippet for the Janitor AI environment",
+    "main": "dist/bundle.js",
+    "scripts": {
+        "clean": "rm -rf dist",
+        "build": "webpack --config webpack.config.js",
+        "test": "jest"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.0",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.0",
+        "ts-loader": "^9.5.0",
+        "typescript": "^5.0.0",
+        "webpack": "^5.0.0",
+        "webpack-cli": "^5.0.0"
+    }
+}
