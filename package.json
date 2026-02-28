@@ -5,7 +5,7 @@
     "main": "dist/bundle.js",
     "scripts": {
         "clean": "rm -rf dist",
-        "build": "webpack --config webpack.config.js",
+        "build": "webpack --config webpack.config.js && node patch-bundle.js",
         "test": "jest"
     },
     "devDependencies": {
