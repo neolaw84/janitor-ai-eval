@@ -56,6 +56,12 @@ if (state.stamina < 5) {
 ```
 ~~~
 
+### 3. Example Output
+```text
+she does not know the situation yet.
+she is very tired.
+```
+
 ## Usage
 The entry script located at `src/index.ts` automatically runs `evaluateMarkdownCodeBlocks` on the global Janitor AI `context`.
 
