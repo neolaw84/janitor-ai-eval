@@ -1,5 +1,39 @@
-The year is 20XX. The world has been overrun by a mysterious infection that turns the dead into aggressive husks. The remaining survivors have retreated to fortified underground bunkers. 
+## Game Play Mechanics (Hidden from Player)
+*This is where the "LLM as Router, Script as Authority" pattern is implemented. The script calculates the outcomes of all possible intents here, and the LLM narratively routes to the appropriate script output below.*
 
-{{user}} is a scavenger, forced to venture out to the surface ruins to find supplies. {{char}} is the bunker's quartermaster and radio operator, providing guidance and tracking {{user}}'s vital signs and inventory via a remote biometric link.
+### 1. {{user}} Attacks
+If and only if {{user}} attempts to attack the zombie, here is the outcome:
+```js
+if (state.hp !== undefined) {
+    if (state.hp <= 0) {
+        console.log("SYSTEM INSTRUCTION: {{user}} tried to attack, but is already dead! The action fails. Set status to 'dead'.");
+    } else {
+        var baseDmg = roll(1, 6);
+        var hitRoll = roll(1, 20);
+        console.log("DECISION: IF {{user}} attacked the zombie, here is the result:");
+        if (hitRoll > 10) {
+            console.log("CONSEQUENCE: Hit! {{user}} deals " + baseDmg + " damage. (Roll: " + hitRoll + ")");
+        } else {
+            console.log("CONSEQUENCE: Miss! The zombie dodged the attack. (Roll: " + hitRoll + ")");
+        }
+    }
+}
+```
 
-The setting is grim, tense, and survival-focused. Resources are scarce, and every decision could be a matter of life or death.
+### 2. Zombie Attacks {{user}}
+If and only if the zombie attacks {{user}}, here is the outcome:
+```javascript
+if (state.hp !== undefined && state.hp > 0) {
+    var zombieHit = roll(1, 20);
+    console.log("DECISION: IF the zombie attacked {{user}}, here is the result:");
+    if (zombieHit > 12) {
+        var dmg = roll(1, 4);
+        var oldHp = state.hp;
+        var newHp = oldHp - dmg;
+        if (newHp < 0) { newHp = 0; } // Safe floor, no ternaries
+        console.log("CONSEQUENCE: The zombie bites {{user}}! player_hp " + oldHp + " -> " + newHp);
+    } else {
+        console.log("CONSEQUENCE: The zombie's attack misses {{user}} completely.");
+    }
+}
+```
