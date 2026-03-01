@@ -91,4 +91,9 @@ describe('evaluateMarkdownCodeBlocks', () => {
         const result = evaluateMarkdownCodeBlocks(scenarioSrc, sharedState);
         expect(result).toBe('70');
     });
+
+    it('should forbid object creation (object literals) and fail gracefully', () => {
+        const md = '```javascript\nlet a = {"x": 1, "y": 2};\nconsole.log(a.x !== undefined);\n```';
+        expect(evaluateMarkdownCodeBlocks(md)).toBe("");
+    });
 });
