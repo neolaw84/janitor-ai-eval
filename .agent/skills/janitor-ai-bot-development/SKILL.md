@@ -9,10 +9,11 @@ You are assisting the user in developing a Janitor AI bot utilizing the `janitor
 
 ## Core Concepts
 
-Developing a Janitor AI bot involves two primary markdown files:
+Developing a Janitor AI bot involves three primary markdown files:
 
 1.  **The Personality File**: This file acts as the system prompt and instructions for the LLM. It defines the character, the rules, and the game logic (using JavaScript blocks).
-2.  **The Scenario File**: This file acts as the first message or introduction, setting the initial context and starting state.
+2.  **The Scenario File**: This file describes the detailed setting, background, and specific situation or world the bot/RPG takes place in.
+3.  **The First Message File**: This file acts as the initial introduction sent to the player, setting the immediate context and starting state.
 
 ### The Execution Loop
 
@@ -28,8 +29,11 @@ Developing a Janitor AI bot involves two primary markdown files:
 
 When asked to create or modify a Janitor AI bot:
 
-### 1. Separate Personality and Scenario
-Ensure there is a clear distinction between the Personality (rules and logic) and the Scenario (initial state and intro). Avoid mixing initial state definitions into the Personality file unless it's a fallback (e.g., `if (state.hp === undefined) { state.hp = 100; }`).
+### 1. Distinct Files: Personality, Scenario, First Message
+Ensure there is a clear distinction between the files:
+- **Personality**: Rules and JS logic. Avoid mixing initial state definitions here unless it's a fallback (e.g., `if (state.hp === undefined) { state.hp = 100; }`).
+- **Scenario**: Detailed background and world-building.
+- **First Message**: The opening narration and immediate state initialization format.
 
 ### 2. Instruct the LLM on State Tracking
 In the Personality file, explicitly instruct the LLM to maintain and output the state at the end of its messages. The `janitor-ai-eval` parser accepts various formats (case-insensitive):
@@ -57,4 +61,5 @@ Use ```js or ```javascript fences in the Personality file to write game logic.
 Review the following files for technical details and reusable templates before writing a bot:
 - `references/architecture.md`: Technical details on how evaluation works.
 - `assets/personality-template.md`: A template for the Personality file.
-- `assets/scenario-template.md`: A template for the Scenario file.
+- `assets/scenario-template.md`: A template for the detailed Scenario description.
+- `assets/first-message-template.md`: A template for the First Message and initial state.
