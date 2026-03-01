@@ -81,4 +81,14 @@ describe('evaluateMarkdownCodeBlocks', () => {
         const md = '```js\nstate.hp = 99;\n```\n separator \n```javascript\nconsole.log(state.hp);\n```';
         expect(evaluateMarkdownCodeBlocks(md, injectedState)).toBe('\n separator \n99');
     });
+
+    it('should persist state across separate evaluations when the state object reference is shared (simulating Personality + Scenario separate calls)', () => {
+        const sharedState: Record<string, string | number | boolean> = { hp: 100 };
+        const personalitySrc = '```js\nstate.hp -= 30;\n```';
+        const scenarioSrc = '```javascript\nconsole.log(state.hp);\n```';
+
+        evaluateMarkdownCodeBlocks(personalitySrc, sharedState);
+        const result = evaluateMarkdownCodeBlocks(scenarioSrc, sharedState);
+        expect(result).toBe('70');
+    });
 });

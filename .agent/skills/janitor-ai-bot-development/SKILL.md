@@ -13,7 +13,7 @@ Developing a Janitor AI bot involves three primary markdown files:
 
 1.  **The Personality File**: This file acts as the system prompt and instructions for the LLM. It defines the character, the rules, and the game logic (using JavaScript blocks).
 2.  **The Scenario File**: This file describes the detailed setting, background, and specific situation or world the bot/RPG takes place in. 
-    *(Note: The Janitor AI platform processes the Personality and Scenario files together to form the core `context.character.personality` prompt).*
+    *(Note: The Janitor AI platform evaluates the Personality and Scenario files as two separate string invocations, but shares the `state` object between them. This means state mutations made by JS blocks in the Personality file are inherited by JavaScript blocks in the Scenario file. After the script runs, the Scenario text is simply concatenated to the Personality to form the `context.character.personality` prompt).*
 3.  **The First Message File**: This file acts as the initial introduction sent to the player, setting the immediate context and starting state (`context.chat.last_messages[0]`).
 
 ### The Execution Loop
