@@ -8,8 +8,8 @@
  *   *mana:* 8
  *   "status" > "bad"
  */
-export function extractStateFromMessage(content: string): Record<string, string | number> {
-    const state: Record<string, string | number> = {};
+export function extractStateFromMessage(content: string): Record<string, string | number | boolean> {
+    const state: Record<string, string | number | boolean> = {};
     if (!content) return state;
 
     // Split message into individual lines
@@ -36,13 +36,21 @@ export function extractStateFromMessage(content: string): Record<string, string 
 
             if (!cleanKey) continue;
 
-            // Attempt to cast value to a number if it is solidly numeric
-            // Otherwise, keep it as a string
-            const numVal = Number(cleanVal);
-            if (!isNaN(numVal) && cleanVal !== '') {
-                state[cleanKey] = numVal;
+            // Attempt to cast value to a boolean for common truthy/falsy strings
+            const lowerVal = cleanVal.toLowerCase();
+            if (['true', 'yes', 'y'].indexOf(lowerVal) !== -1) {
+                state[cleanKey] = true;
+            } else if (['false', 'no', 'n'].indexOf(lowerVal) !== -1) {
+                state[cleanKey] = false;
             } else {
-                state[cleanKey] = cleanVal;
+                // Attempt to cast value to a number if it is solidly numeric
+                // Otherwise, keep it as a string
+                const numVal = Number(cleanVal);
+                if (!isNaN(numVal) && cleanVal !== '') {
+                    state[cleanKey] = numVal;
+                } else {
+                    state[cleanKey] = cleanVal;
+                }
             }
         }
     }

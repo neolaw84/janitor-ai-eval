@@ -26,4 +26,24 @@ level = 2
             some_key: 5
         });
     });
+
+    it('should parse boolean values case-insensitively', () => {
+        const text = `
+is_active: TRUE
+has_item: false
+ready: yes
+done: NO
+flag1: y
+flag2: n
+        `;
+        const state = extractStateFromMessage(text);
+        expect(state).toEqual({
+            is_active: true,
+            has_item: false,
+            ready: true,
+            done: false,
+            flag1: true,
+            flag2: false
+        });
+    });
 });

@@ -75,4 +75,10 @@ describe('evaluateMarkdownCodeBlocks', () => {
         const md = "```js\nstate.hp = 99;\nconsole.log(state.hp);\n```";
         expect(evaluateMarkdownCodeBlocks(md, injectedState)).toBe("99");
     });
+
+    it('should share state mutations across multiple blocks', () => {
+        const injectedState: Record<string, string | number | boolean> = { hp: 50 };
+        const md = '```js\nstate.hp = 99;\n```\n separator \n```javascript\nconsole.log(state.hp);\n```';
+        expect(evaluateMarkdownCodeBlocks(md, injectedState)).toBe('\n separator \n99');
+    });
 });

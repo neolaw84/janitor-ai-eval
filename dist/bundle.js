@@ -1,5 +1,80 @@
-// src/utils/markdown-evaluator.ts
+/******/ "use strict";
+/******/ var __webpack_modules__ = ({
 
+/***/ "./src/context-parser.ts"
+(__unused_webpack_module, exports) {
+
+
+exports['__esModule'] = true;
+exports.extractStateFromMessage = extractStateFromMessage;
+/**
+ * Extracts key-value mappings from a raw, LLM-generated Markdown chat message.
+ * It is a best-effort parser looking for standardized RPG status patterns.
+ *
+ * E.g:
+ *   stamina : 4
+ *   hit-points - 9
+ *   *mana:* 8
+ *   "status" > "bad"
+ */
+function extractStateFromMessage(content) {
+    const state = {};
+    if (!content)
+        return state;
+    // Split message into individual lines
+    const lines = content.split('\n');
+    for (const line of lines) {
+        // Find lines matching standard key-value separator patterns (:, -, >, =)
+        // We look for:
+        // Fix for `hit-points - 9`:
+        // We match until we find the LAST occurrence of : - > = by making the first group greedy `.+`
+        // and looking for the separator
+        const match = line.match(/^(.+)[:\->=](.+)$/);
+        if (match) {
+            // Strip markdown bounding characters (*, _, ", ') and trim spaces
+            const keyRaw = match[1];
+            const valRaw = match[2];
+            // Replaces hyphens with underscores as per latest guidelines
+            let cleanKey = keyRaw.replace(/[*\"']/g, '').trim();
+            cleanKey = cleanKey.replace(/-/g, '_');
+            const cleanVal = valRaw.replace(/[*_\"']/g, '').trim();
+            if (!cleanKey)
+                continue;
+            // Attempt to cast value to a boolean for common truthy/falsy strings
+            const lowerVal = cleanVal.toLowerCase();
+            if (['true', 'yes', 'y'].indexOf(lowerVal) !== -1) {
+                state[cleanKey] = true;
+            }
+            else if (['false', 'no', 'n'].indexOf(lowerVal) !== -1) {
+                state[cleanKey] = false;
+            }
+            else {
+                // Attempt to cast value to a number if it is solidly numeric
+                // Otherwise, keep it as a string
+                const numVal = Number(cleanVal);
+                if (!isNaN(numVal) && cleanVal !== '') {
+                    state[cleanKey] = numVal;
+                }
+                else {
+                    state[cleanKey] = cleanVal;
+                }
+            }
+        }
+    }
+    return state;
+}
+
+
+/***/ },
+
+/***/ "./src/markdown-evaluator.ts"
+(__unused_webpack_module, exports) {
+
+
+// src/utils/markdown-evaluator.ts
+exports['__esModule'] = true;
+exports.Interpreter = void 0;
+exports.evaluateMarkdownCodeBlocks = evaluateMarkdownCodeBlocks;
 // Since we cannot use libraries and `eval` is dangerous in Janitor AI due to potential XSS,
 // we are implementing a simplified custom AST Lexer, Parser, and Interpreter.
 // The supported subset includes:
@@ -8,77 +83,68 @@
 // - simple if/else if/else
 // - array and simple for loop (with 3 parts)
 // - console.log()
-
 // --- LEXER ---
-enum TokenType {
-    Number,
-    String,
-    Identifier,
-    Keyword,
-    Operator,
-    Punctuation,
-    EOF
-}
-
-interface Token {
-    type: TokenType;
-    value: string;
-}
-
+var TokenType;
+(function (TokenType) {
+    TokenType[TokenType["Number"] = 0] = "Number";
+    TokenType[TokenType["String"] = 1] = "String";
+    TokenType[TokenType["Identifier"] = 2] = "Identifier";
+    TokenType[TokenType["Keyword"] = 3] = "Keyword";
+    TokenType[TokenType["Operator"] = 4] = "Operator";
+    TokenType[TokenType["Punctuation"] = 5] = "Punctuation";
+    TokenType[TokenType["EOF"] = 6] = "EOF";
+})(TokenType || (TokenType = {}));
 const Keywords = ['var', 'let', 'const', 'if', 'else', 'for', 'true', 'false', 'null', 'undefined'];
 const Operators = ['+', '-', '*', '/', '%', '==', '===', '!=', '!==', '<', '>', '<=', '>=', '&&', '||', '!', '=', '++', '--', '+=', '-='];
 const Punctuation = ['(', ')', '{', '}', '[', ']', ',', ';', '.', ':'];
-
 class Lexer {
-    private pos = 0;
-    private char: string | null;
-
-    constructor(private code: string) {
+    constructor(code) {
+        this.code = code;
+        this.pos = 0;
         this.char = this.code.length > 0 ? this.code[0] : null;
     }
-
-    private advance() {
+    advance() {
         this.pos++;
         if (this.pos < this.code.length) {
             this.char = this.code[this.pos];
-        } else {
+        }
+        else {
             this.char = null;
         }
     }
-
-    private peek(): string | null {
+    peek() {
         if (this.pos + 1 < this.code.length) {
             return this.code[this.pos + 1];
         }
         return null;
     }
-
-    private skipWhitespaceAndComments() {
+    skipWhitespaceAndComments() {
         while (this.char !== null) {
             if (/\s/.test(this.char)) {
                 this.advance();
-            } else if (this.char === '/' && this.peek() === '/') {
-                while (this.char !== null && (this.char as string) !== '\n') {
+            }
+            else if (this.char === '/' && this.peek() === '/') {
+                while (this.char !== null && this.char !== '\n') {
                     this.advance();
                 }
-            } else {
+            }
+            else {
                 break;
             }
         }
     }
-
-    private number(): Token {
+    number() {
         let result = '';
         let hasDot = false;
         while (this.char !== null && (/\d/.test(this.char) || (this.char === '.' && !hasDot))) {
-            if (this.char === '.') hasDot = true;
+            if (this.char === '.')
+                hasDot = true;
             result += this.char;
             this.advance();
         }
         return { type: TokenType.Number, value: result };
     }
-
-    private string(quoteChar: string): Token {
+    string(quoteChar) {
         let result = '';
         this.advance(); // Skip opening quote
         while (this.char !== null && this.char !== quoteChar) {
@@ -86,7 +152,8 @@ class Lexer {
                 result += quoteChar;
                 this.advance();
                 this.advance();
-            } else {
+            }
+            else {
                 result += this.char;
                 this.advance();
             }
@@ -94,8 +161,7 @@ class Lexer {
         this.advance(); // Skip closing quote
         return { type: TokenType.String, value: result };
     }
-
-    private identifierOrKeyword(): Token {
+    identifierOrKeyword() {
         let result = '';
         while (this.char !== null && /[a-zA-Z0-9_]/.test(this.char)) {
             result += this.char;
@@ -106,25 +172,20 @@ class Lexer {
         }
         return { type: TokenType.Identifier, value: result };
     }
-
-    public getNextToken(): Token {
+    getNextToken() {
         while (this.char !== null) {
             this.skipWhitespaceAndComments();
-
-            if (this.char === null) break;
-
+            if (this.char === null)
+                break;
             if (/\d/.test(this.char)) {
                 return this.number();
             }
-
             if (/[a-zA-Z_]/.test(this.char)) {
                 return this.identifierOrKeyword();
             }
-
             if (this.char === '"' || this.char === "'") {
                 return this.string(this.char);
             }
-
             // Check multi-char operators first
             let multiCharOp = false;
             if (['=', '!', '<', '>'].indexOf(this.char) !== -1) {
@@ -133,11 +194,14 @@ class Lexer {
                     const nextNext = this.pos + 2 < this.code.length ? this.code[this.pos + 2] : null;
                     if (nextNext === '=' && (this.char === '=' || this.char === '!')) {
                         const v = this.char + '==';
-                        this.advance(); this.advance(); this.advance();
+                        this.advance();
+                        this.advance();
+                        this.advance();
                         return { type: TokenType.Operator, value: v };
                     }
                     const v = this.char + '=';
-                    this.advance(); this.advance();
+                    this.advance();
+                    this.advance();
                     return { type: TokenType.Operator, value: v };
                 }
             }
@@ -145,73 +209,64 @@ class Lexer {
                 const next = this.peek();
                 if (next === this.char || next === '=') {
                     const v = this.char + next;
-                    this.advance(); this.advance();
+                    this.advance();
+                    this.advance();
                     return { type: TokenType.Operator, value: v };
                 }
             }
             if (this.char === '&' && this.peek() === '&') {
-                this.advance(); this.advance();
+                this.advance();
+                this.advance();
                 return { type: TokenType.Operator, value: '&&' };
             }
             if (this.char === '|' && this.peek() === '|') {
-                this.advance(); this.advance();
+                this.advance();
+                this.advance();
                 return { type: TokenType.Operator, value: '||' };
             }
-
             if (Operators.indexOf(this.char) !== -1) {
                 const v = this.char;
                 this.advance();
                 return { type: TokenType.Operator, value: v };
             }
-
             if (Punctuation.indexOf(this.char) !== -1) {
                 const v = this.char;
                 this.advance();
                 return { type: TokenType.Punctuation, value: v };
             }
-
             throw new Error(`Lexer Error: Unexpected character: ${this.char}`);
         }
-
         return { type: TokenType.EOF, value: 'EOF' };
     }
 }
-
 // --- PARSER ---
 class Parser {
-    private lexer: Lexer;
-    private currentToken: Token;
-
-    constructor(code: string) {
+    constructor(code) {
         this.lexer = new Lexer(code);
         this.currentToken = this.lexer.getNextToken();
     }
-
-    private error(msg: string) {
+    error(msg) {
         throw new Error(`Parser Error: ${msg} (at token: ${this.currentToken.value})`);
     }
-
-    private eat(type: TokenType, value?: string) {
+    eat(type, value) {
         if (this.currentToken.type === type && (!value || this.currentToken.value === value)) {
             this.currentToken = this.lexer.getNextToken();
-        } else {
+        }
+        else {
             this.error(`Expected ${TokenType[type]} ${value ? value : ''}, got ${TokenType[this.currentToken.type]} ${this.currentToken.value}`);
         }
     }
-
-    public parse() {
+    parse() {
         return this.program();
     }
-
-    private program() {
+    program() {
         const statements = [];
         while (this.currentToken.type !== TokenType.EOF) {
             statements.push(this.statement());
         }
         return { type: 'Program', body: statements };
     }
-
-    private statement(): any {
+    statement() {
         if (this.currentToken.type === TokenType.Keyword) {
             if (this.currentToken.value === 'var' || this.currentToken.value === 'let' || this.currentToken.value === 'const') {
                 return this.variableDeclaration();
@@ -228,8 +283,7 @@ class Parser {
         }
         return this.expressionStatement();
     }
-
-    private blockStatement() {
+    blockStatement() {
         this.eat(TokenType.Punctuation, '{');
         const statements = [];
         while (!(this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '}')) {
@@ -238,12 +292,10 @@ class Parser {
         this.eat(TokenType.Punctuation, '}');
         return { type: 'BlockStatement', body: statements };
     }
-
-    private variableDeclaration() {
+    variableDeclaration() {
         const kind = this.currentToken.value;
         this.eat(TokenType.Keyword); // let, var, const
         const declarations = [];
-
         let declaring = true;
         while (declaring) {
             const id = this.currentToken.value;
@@ -256,18 +308,17 @@ class Parser {
             declarations.push({ id, init });
             if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === ',') {
                 this.eat(TokenType.Punctuation, ',');
-            } else {
+            }
+            else {
                 break;
             }
         }
-
         if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === ';') {
             this.eat(TokenType.Punctuation, ';');
         }
         return { type: 'VariableDeclaration', kind, declarations };
     }
-
-    private ifStatement() {
+    ifStatement() {
         this.eat(TokenType.Keyword, 'if');
         this.eat(TokenType.Punctuation, '(');
         const test = this.expression();
@@ -280,54 +331,46 @@ class Parser {
         }
         return { type: 'IfStatement', test, consequent, alternate };
     }
-
-    private forStatement() {
+    forStatement() {
         this.eat(TokenType.Keyword, 'for');
         this.eat(TokenType.Punctuation, '(');
-
         let init = null;
         if (this.currentToken.type !== TokenType.Punctuation || this.currentToken.value !== ';') {
             if (this.currentToken.type === TokenType.Keyword && (this.currentToken.value === 'var' || this.currentToken.value === 'let')) {
                 init = this.variableDeclaration(); // handles its own semicolon
-            } else {
+            }
+            else {
                 init = this.expressionStatement(); // handles its own semicolon
             }
-        } else {
+        }
+        else {
             this.eat(TokenType.Punctuation, ';');
         }
-
         let test = null;
         if (this.currentToken.type !== TokenType.Punctuation || this.currentToken.value !== ';') {
             test = this.expression();
         }
         this.eat(TokenType.Punctuation, ';');
-
         let update = null;
         if (this.currentToken.type !== TokenType.Punctuation || this.currentToken.value !== ')') {
             update = this.expression();
         }
         this.eat(TokenType.Punctuation, ')');
-
         const body = this.statement();
-
         return { type: 'ForStatement', init, test, update, body };
     }
-
-    private expressionStatement() {
+    expressionStatement() {
         const expr = this.expression();
         if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === ';') {
             this.eat(TokenType.Punctuation, ';');
         }
         return { type: 'ExpressionStatement', expression: expr };
     }
-
-    private expression() {
+    expression() {
         return this.assignment();
     }
-
-    private assignment(): any {
+    assignment() {
         let left = this.logicalOr();
-
         if (this.currentToken.type === TokenType.Operator &&
             ['=', '+=', '-='].indexOf(this.currentToken.value) !== -1) {
             const operator = this.currentToken.value;
@@ -337,8 +380,7 @@ class Parser {
         }
         return left;
     }
-
-    private logicalOr() {
+    logicalOr() {
         let node = this.logicalAnd();
         while (this.currentToken.type === TokenType.Operator && this.currentToken.value === '||') {
             this.eat(TokenType.Operator, '||');
@@ -346,8 +388,7 @@ class Parser {
         }
         return node;
     }
-
-    private logicalAnd() {
+    logicalAnd() {
         let node = this.equality();
         while (this.currentToken.type === TokenType.Operator && this.currentToken.value === '&&') {
             this.eat(TokenType.Operator, '&&');
@@ -355,8 +396,7 @@ class Parser {
         }
         return node;
     }
-
-    private equality() {
+    equality() {
         let node = this.relational();
         while (this.currentToken.type === TokenType.Operator && ['==', '!=', '===', '!=='].indexOf(this.currentToken.value) !== -1) {
             const op = this.currentToken.value;
@@ -365,8 +405,7 @@ class Parser {
         }
         return node;
     }
-
-    private relational() {
+    relational() {
         let node = this.additive();
         while (this.currentToken.type === TokenType.Operator && ['<', '<=', '>', '>='].indexOf(this.currentToken.value) !== -1) {
             const op = this.currentToken.value;
@@ -375,8 +414,7 @@ class Parser {
         }
         return node;
     }
-
-    private additive() {
+    additive() {
         let node = this.multiplicative();
         while (this.currentToken.type === TokenType.Operator && ['+', '-'].indexOf(this.currentToken.value) !== -1) {
             const op = this.currentToken.value;
@@ -385,8 +423,7 @@ class Parser {
         }
         return node;
     }
-
-    private multiplicative() {
+    multiplicative() {
         let node = this.unary();
         while (this.currentToken.type === TokenType.Operator && ['*', '/', '%'].indexOf(this.currentToken.value) !== -1) {
             const op = this.currentToken.value;
@@ -395,8 +432,7 @@ class Parser {
         }
         return node;
     }
-
-    private unary(): any {
+    unary() {
         if (this.currentToken.type === TokenType.Operator && ['+', '-', '!'].indexOf(this.currentToken.value) !== -1) {
             const op = this.currentToken.value;
             this.eat(TokenType.Operator);
@@ -404,47 +440,48 @@ class Parser {
         }
         return this.updateOrCallOrMember();
     }
-
-    private updateOrCallOrMember(): any {
+    updateOrCallOrMember() {
         let node = this.primary();
-
         let parsing = true;
         while (parsing) {
             if (this.currentToken.type === TokenType.Operator && ['++', '--'].indexOf(this.currentToken.value) !== -1) {
                 const op = this.currentToken.value;
                 this.eat(TokenType.Operator);
                 node = { type: 'UpdateExpression', operator: op, argument: node, prefix: false };
-            } else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '(') {
+            }
+            else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '(') {
                 this.eat(TokenType.Punctuation, '(');
                 const args = [];
-                if (!(this.currentToken.type === TokenType.Punctuation && (this.currentToken.value as string) === ')')) {
+                if (!(this.currentToken.type === TokenType.Punctuation && this.currentToken.value === ')')) {
                     args.push(this.expression());
-                    while (this.currentToken.type === TokenType.Punctuation && (this.currentToken.value as string) === ',') {
+                    while (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === ',') {
                         this.eat(TokenType.Punctuation, ',');
                         args.push(this.expression());
                     }
                 }
                 this.eat(TokenType.Punctuation, ')');
                 node = { type: 'CallExpression', callee: node, arguments: args };
-            } else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '[') {
+            }
+            else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '[') {
                 this.eat(TokenType.Punctuation, '[');
                 const property = this.expression();
                 this.eat(TokenType.Punctuation, ']');
                 node = { type: 'MemberExpression', object: node, property, computed: true };
-            } else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '.') {
+            }
+            else if (this.currentToken.type === TokenType.Punctuation && this.currentToken.value === '.') {
                 this.eat(TokenType.Punctuation, '.');
                 const propertyStr = this.currentToken.value;
                 this.eat(TokenType.Identifier);
                 const property = { type: 'Identifier', name: propertyStr };
                 node = { type: 'MemberExpression', object: node, property, computed: false };
-            } else {
+            }
+            else {
                 parsing = false;
             }
         }
         return node;
     }
-
-    private primary(): any {
+    primary() {
         const token = this.currentToken;
         if (token.type === TokenType.Number) {
             this.eat(TokenType.Number);
@@ -495,58 +532,54 @@ class Parser {
             this.eat(TokenType.Punctuation, ']');
             return { type: 'ArrayExpression', elements };
         }
-
         this.error(`Unexpected token in primary: ${token.value} (Type: ${TokenType[token.type]})`);
     }
 }
-
 // --- INTERPRETER ---
 class Environment {
-    private record: Record<string, any> = {};
-
-    constructor(private parent: Environment | null = null) { }
-
-    define(name: string, value: any) {
+    constructor(parent = null) {
+        this.parent = parent;
+        this.record = {};
+    }
+    define(name, value) {
         this.record[name] = value;
     }
-
-    assign(name: string, value: any) {
+    assign(name, value) {
         if (this.record.hasOwnProperty(name)) {
             this.record[name] = value;
-        } else if (this.parent) {
+        }
+        else if (this.parent) {
             this.parent.assign(name, value);
-        } else {
+        }
+        else {
             throw new Error(`ReferenceError: ${name} is not defined`);
         }
     }
-
-    get(name: string): any {
+    get(name) {
         if (this.record.hasOwnProperty(name)) {
             return this.record[name];
-        } else if (this.parent) {
+        }
+        else if (this.parent) {
             return this.parent.get(name);
-        } else {
-            if (name === 'undefined') return undefined;
+        }
+        else {
+            if (name === 'undefined')
+                return undefined;
             throw new Error(`ReferenceError: ${name} is not defined`);
         }
     }
 }
-
-export class Interpreter {
-    private env: Environment;
-    public logs: string[] = [];
-
+class Interpreter {
     constructor() {
+        this.logs = [];
         this.env = new Environment();
-
         // Mock console.log
         const mockConsole = {
-            log: (...args: any[]) => {
+            log: (...args) => {
                 this.logs.push(args.map(a => String(a)).join(' '));
             }
         };
         this.env.define('console', mockConsole);
-
         // Restricted Math subset
         const mockMath = {
             floor: Math.floor,
@@ -557,26 +590,24 @@ export class Interpreter {
             random: Math.random
         };
         this.env.define('Math', mockMath);
-
         // Custom Dice Roll wrapper
-        const rollHelper = (diceCount: any, faces: any) => {
+        const rollHelper = (diceCount, faces) => {
             const numDice = Number(diceCount);
             const numFaces = Number(faces);
-            if (isNaN(numDice) || isNaN(numFaces) || numDice < 1 || numFaces < 1) return 0;
+            if (isNaN(numDice) || isNaN(numFaces) || numDice < 1 || numFaces < 1)
+                return 0;
             let sum = 0;
             for (let i = 0; i < numDice; i++) {
                 sum += Math.floor(Math.random() * numFaces) + 1;
             }
             return sum;
         };
-
         this.env.define('roll', rollHelper);
         this.env.define('rollxdy', rollHelper);
     }
-
-    evaluate(node: any, env: Environment = this.env): any {
-        if (!node) return undefined;
-
+    evaluate(node, env = this.env) {
+        if (!node)
+            return undefined;
         switch (node.type) {
             case 'Program':
             case 'BlockStatement': {
@@ -602,7 +633,8 @@ export class Interpreter {
             case 'IfStatement': {
                 if (this.evaluate(node.test, env)) {
                     return this.evaluate(node.consequent, env);
-                } else if (node.alternate) {
+                }
+                else if (node.alternate) {
                     return this.evaluate(node.alternate, env);
                 }
                 return;
@@ -625,22 +657,27 @@ export class Interpreter {
                 if (node.left.type === 'Identifier') {
                     if (node.operator === '=') {
                         env.assign(node.left.name, value);
-                    } else if (node.operator === '+=') {
+                    }
+                    else if (node.operator === '+=') {
                         env.assign(node.left.name, env.get(node.left.name) + value);
-                    } else if (node.operator === '-=') {
+                    }
+                    else if (node.operator === '-=') {
                         env.assign(node.left.name, env.get(node.left.name) - value);
                     }
                     return value;
-                } else if (node.left.type === 'MemberExpression') {
+                }
+                else if (node.left.type === 'MemberExpression') {
                     const obj = this.evaluate(node.left.object, env);
                     const prop = node.left.computed
                         ? this.evaluate(node.left.property, env)
                         : node.left.property.name;
                     if (node.operator === '=') {
                         obj[prop] = value;
-                    } else if (node.operator === '+=') {
+                    }
+                    else if (node.operator === '+=') {
                         obj[prop] += value;
-                    } else if (node.operator === '-=') {
+                    }
+                    else if (node.operator === '-=') {
                         obj[prop] -= value;
                     }
                     return value;
@@ -669,15 +706,20 @@ export class Interpreter {
             }
             case 'LogicalExpression': {
                 const left = this.evaluate(node.left, env);
-                if (node.operator === '&&') return left && this.evaluate(node.right, env);
-                if (node.operator === '||') return left || this.evaluate(node.right, env);
+                if (node.operator === '&&')
+                    return left && this.evaluate(node.right, env);
+                if (node.operator === '||')
+                    return left || this.evaluate(node.right, env);
                 throw new Error(`Unsupported logical operator ${node.operator}`);
             }
             case 'UnaryExpression': {
                 const arg = this.evaluate(node.argument, env);
-                if (node.operator === '-') return -arg;
-                if (node.operator === '+') return +arg;
-                if (node.operator === '!') return !arg;
+                if (node.operator === '-')
+                    return -arg;
+                if (node.operator === '+')
+                    return +arg;
+                if (node.operator === '!')
+                    return !arg;
                 throw new Error(`Unsupported unary operator ${node.operator}`);
             }
             case 'UpdateExpression': {
@@ -688,7 +730,8 @@ export class Interpreter {
                         : (node.operator === '++' ? val++ : val--);
                     env.assign(node.argument.name, val);
                     return res;
-                } else if (node.argument.type === 'MemberExpression') {
+                }
+                else if (node.argument.type === 'MemberExpression') {
                     const obj = this.evaluate(node.argument.object, env);
                     const prop = node.argument.computed
                         ? this.evaluate(node.argument.property, env)
@@ -704,8 +747,7 @@ export class Interpreter {
             }
             case 'CallExpression': {
                 const callee = this.evaluate(node.callee, env);
-                const args = node.arguments.map((a: any) => this.evaluate(a, env));
-
+                const args = node.arguments.map((a) => this.evaluate(a, env));
                 if (typeof callee === 'function') {
                     // Because we extract `console.log` object/member expr to its function,
                     // we lose `this`. For `console`, we can apply it.
@@ -722,8 +764,8 @@ export class Interpreter {
                 const prop = node.computed
                     ? this.evaluate(node.property, env)
                     : node.property.name;
-
-                if (obj == null) throw new Error(`TypeError: Cannot read properties of ${obj}`);
+                if (obj == null)
+                    throw new Error(`TypeError: Cannot read properties of ${obj}`);
                 const val = obj[prop];
                 // Native array methods like push, string methods like split aren't explicitly bounded 
                 // in this simple AST unless they are called.
@@ -731,7 +773,7 @@ export class Interpreter {
                 return val;
             }
             case 'ArrayExpression': {
-                return node.elements.map((e: any) => this.evaluate(e, env));
+                return node.elements.map((e) => this.evaluate(e, env));
             }
             case 'Identifier': {
                 return env.get(node.name);
@@ -744,20 +786,19 @@ export class Interpreter {
         }
     }
 }
-
+exports.Interpreter = Interpreter;
 /**
  * Searches for ```javascript ... ``` blocks in a markdown string,
  * evaluates the sandboxed code, and replaces the block with the accumulated
  * `console.log()` output.
- * 
+ *
  * Supports a safe subset of ES5: arithmetic, strings, logic, arrays, if/for loops.
  */
-export function evaluateMarkdownCodeBlocks(markdown: string, state: Record<string, string | number | boolean> = {}): string {
+function evaluateMarkdownCodeBlocks(markdown, state = {}) {
     const rx = /```(?:javascript|js)\n([\s\S]*?)```/gi;
     let result = '';
     let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
+    let match;
     while ((match = rx.exec(markdown)) !== null) {
         // Append unchanged text before this block
         result += markdown.slice(lastIndex, match.index);
@@ -766,24 +807,78 @@ export function evaluateMarkdownCodeBlocks(markdown: string, state: Record<strin
             const parser = new Parser(code);
             const ast = parser.parse();
             const interpreter = new Interpreter();
-
             // Inject the SAME state reference for every block so that
             // mutations made by block N are visible to block N+1.
             interpreter['env'].define('state', state);
-
             interpreter.evaluate(ast);
             result += interpreter.logs.join('\n');
-        } catch (e: any) {
+        }
+        catch (e) {
             // Gracefully log error via native console to aid bot creators.
             console.log("Markdown Evaluator Error:", e.message);
-
             // Append empty string to strip the broken block without breaking JanitorAI UI.
             result += '';
         }
         lastIndex = match.index + match[0].length;
     }
-
     // Append any trailing text after the last block
     result += markdown.slice(lastIndex);
     return result;
 }
+
+
+/***/ }
+
+/******/ });
+/************************************************************************/
+/******/ // The module cache
+/******/ var __webpack_module_cache__ = {};
+/******/ 
+/******/ // The require function
+/******/ function __webpack_require__(moduleId) {
+/******/ 	// Check if module is in cache
+/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 	if (cachedModule !== undefined) {
+/******/ 		return cachedModule.exports;
+/******/ 	}
+/******/ 	// Create a new module (and put it into the cache)
+/******/ 	var module = __webpack_module_cache__[moduleId] = {
+/******/ 		// no module.id needed
+/******/ 		// no module.loaded needed
+/******/ 		exports: {}
+/******/ 	};
+/******/ 
+/******/ 	// Execute the module function
+/******/ 	__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 
+/******/ 	// Return the exports of the module
+/******/ 	return module.exports;
+/******/ }
+/******/ 
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
+var exports = __webpack_exports__;
+
+exports['__esModule'] = true;
+const markdown_evaluator_1 = __webpack_require__("./src/markdown-evaluator.ts");
+const context_parser_1 = __webpack_require__("./src/context-parser.ts");
+let injectedState = {};
+if (typeof context !== 'undefined' && context.chat && Array.isArray(context.chat) && context.chat.length >= 2) {
+    const targetMsg = context.chat[context.chat.length - 2];
+    if (targetMsg && targetMsg.content) {
+        injectedState = (0, context_parser_1.extractStateFromMessage)(targetMsg.content);
+    }
+}
+if (typeof context !== 'undefined' && context.character) {
+    if (context.character.personality) {
+        context.character.personality = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(context.character.personality, injectedState);
+    }
+    if (context.character.scenario) {
+        context.character.scenario = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(context.character.scenario, injectedState);
+    }
+}
+
+})();
+
