@@ -48,7 +48,7 @@ Use ```js or ```javascript fences in the Personality file to write game logic.
 *   **State Persistence**: Changes to `state` in one block are visible to subsequent blocks.
 *   **Rolling Dice**: Use the global `roll(count, sides)` or `rollxdy(count, sides)` functions for random numbers (e.g., `roll(1, 20)`).
 *   **Math**: A restricted subset of `Math` is available (`floor`, `ceil`, `round`, `max`, `min`, `random`).
-*   **Output**: Use `console.log("Your narration here")` to pass text back to the LLM or user.
+*   **Output**: Use `console.log("Your narration here")` to inject text directly into the prompt. The original JS code block is entirely replaced by these output strings, meaning the LLM only sees the resulting text (e.g. game logic instructions or injected narration) without knowing it came from a script.
 
 ### 4. Controlling the Narrator ({{char}})
 In RPG scenarios, `{{char}}` acts as the narrator and stat maintainer. It is crucial to limit `{{char}}`'s "free-roam" tendencies so they don't hallucinate outcomes before the `janitor-ai-eval` script runs.
