@@ -50,7 +50,11 @@ Use ```js or ```javascript fences in the Personality file to write game logic.
 *   **Math**: A restricted subset of `Math` is available (`floor`, `ceil`, `round`, `max`, `min`, `random`).
 *   **Output**: Use `console.log("Your narration here")` to pass text back to the LLM or user.
 
-### 4. Edge Cases to Avoid
+### 4. Controlling the Narrator ({{char}})
+In RPG scenarios, `{{char}}` acts as the narrator and stat maintainer. It is crucial to limit `{{char}}`'s "free-roam" tendencies so they don't hallucinate outcomes before the `janitor-ai-eval` script runs.
+*   **Use Negative Prompts**: Explicitly tell the LLM *not* to decide outcomes on its own. For example: "Do not narrate the success of {{user}}'s attacks. Assume attacks miss or are blocked unless the console output explicitly says otherwise."
+
+### 5. Edge Cases to Avoid
 *   Do NOT use complex ES6+ features. Stick to ES2015/ES5 constructs compatible with the custom AST parser (arithmetic, simple if/else, for loops, arrays).
 *   Do NOT attempt to use `Array.prototype.includes` or other modern built-ins; use `indexOf() !== -1` instead.
 *   Do NOT use external APIs (`fetch`, etc.). They are excluded from the sandbox.
