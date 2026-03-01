@@ -34,8 +34,11 @@ Ensure there is a clear distinction between the files:
 - **Scenario**: Detailed background and world-building.
 - **First Message**: The opening narration and immediate state initialization format.
 
-### 2. Instruct the LLM on State Tracking
-In the Personality file, explicitly instruct the LLM to maintain and output the state at the end of its messages. The `janitor-ai-eval` parser accepts various formats (case-insensitive):
+### 2. Instruct the LLM on State Persistent Tracking
+In the Personality file, explicitly instruct the LLM to maintain and output the state at the end of its messages. 
+**CRITICAL**: Every single state variable you expect to persist into the next turn (like `player_sex`, `opponent_sex`, or stats) *MUST* be printed in the LLM's tracking block. If the LLM omits it from its markdown output, the sandbox reads it as `undefined` on the next turn!
+
+The `janitor-ai-eval` parser accepts various formats (case-insensitive):
 *   `hp : 50`
 *   `mana - 20`
 *   `poisoned > yes`
@@ -47,7 +50,7 @@ Use ```js or ```javascript fences in the Personality file to write game logic.
 *   **Accessing State**: You have read/write access to the `state` object (e.g., `state.hp -= 10`).
 *   **State Persistence**: Changes to `state` in one block are visible to subsequent blocks.
 *   **Rolling Dice**: Use the global `roll(count, sides)` or `rollxdy(count, sides)` functions for random numbers (e.g., `roll(1, 20)`).
-*   **Math**: A restricted subset of `Math` is available (`floor`, `ceil`, `round`, `max`, `min`, `random`).
+*   **Math**: A restricted subset of `Math` is available (`floor`, `ceil`, `round`, `max`, `min`, `abs`, `random`).
 *   **Output**: Use `console.log("Your narration here")` to inject text directly into the prompt. The original JS code block is entirely replaced by these output strings, meaning the LLM only sees the resulting text (e.g. game logic instructions or injected narration) without knowing it came from a script.
 
 ### 4. Controlling the Narrator ({{char}})
@@ -56,6 +59,9 @@ In RPG scenarios, `{{char}}` acts as the narrator and stat maintainer. It is cru
 
 ### 5. Edge Cases to Avoid
 *   Do NOT use complex ES6+ features. Stick to ES2015/ES5 constructs compatible with the custom AST parser (arithmetic, simple if/else, for loops, arrays).
+*   **No `function` keyword**: The custom lexer cannot parse `state.myMacro = function() {}`. It creates trailing orphan semicolons. Manually inline all logic chunks instead.
+*   **No Ternaries (`? :`)**: The sandbox will crash with `Unexpected character: ?`. Use standard `if/else` statements natively.
+*   **No Semicolons inside Strings**: Putting `;` within a `console.log("...");` literal crashes the simple token parser.
 *   Do NOT attempt to use `Array.prototype.includes` or other modern built-ins; use `indexOf() !== -1` instead.
 *   Do NOT use external APIs (`fetch`, etc.). They are excluded from the sandbox.
 

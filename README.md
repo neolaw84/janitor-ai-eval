@@ -19,11 +19,17 @@ The Custom AST environment enforces the following JavaScript subset:
 
 ### Exposed Globals
 To aid RPG bot creation, the sandbox natively provides:
-- **`Math`**: A safe subset of operators: `Math.floor`, `Math.ceil`, `Math.round`, `Math.max`, `Math.min`, and `Math.random`
+- **`Math`**: A safe subset of operators: `Math.floor`, `Math.ceil`, `Math.round`, `Math.max`, `Math.min`, `Math.abs`, and `Math.random`
 - **`roll(x, y)`** (and alias **`rollxdy(x, y)`**): Easily simulate rolling `x` dice with `y` sides.
 
 **Security Guarantee:** Any commands attempting to use external API functions (like `fetch`, `window`, etc.) immediately fail. Infinite loops and literal `while(true)` operations are also structurally avoided or rewritten for Janitor AI compatibility.
 If a codeblock is fundamentally malformed or attempts an illegal sandbox breakout, the Evaluator catches the exception, logs it securely to the native underlying browser console, and silently skips processing the block so it does not destroy standard text output.
+
+### Strict Syntax Limitations (Important!)
+Because the AST parser is exceptionally strict, it will crash and throw exceptions if you violate these rules:
+- **No `function` declarations**: Do not try to declare helper macros (e.g., `state.myFunc = function() {}`). It causes trailing semicolon parsing errors. Write everything inline.
+- **No Ternary Operators**: Do not use `condition ? a : b`. Only use standard `if/else` clusters.
+- **No Semicolons in Strings**: Do not place semicolons inside string concatenations (e.g. `console.log("value: " + val + ";")`). The lexer chokes on inner punctuation.
 
 ## Example Bot Usage
 The sandbox automatically extracts variables out of the chat history and makes them available globally via the `state` object.
