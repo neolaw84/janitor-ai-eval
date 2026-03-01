@@ -587,6 +587,7 @@ class Interpreter {
             round: Math.round,
             max: Math.max,
             min: Math.min,
+            abs: Math.abs,
             random: Math.random
         };
         this.env.define('Math', mockMath);
@@ -795,27 +796,36 @@ exports.Interpreter = Interpreter;
  * Supports a safe subset of ES5: arithmetic, strings, logic, arrays, if/for loops.
  */
 function evaluateMarkdownCodeBlocks(markdown, state = {}) {
-    const rx = /```(?:javascript|js)\n([\s\S]*?)```/gi;
+    const rx = /```(?:javascript|js)\r?\n([\s\S]*?)```/gi;
     let result = '';
     let lastIndex = 0;
     let match;
     while ((match = rx.exec(markdown)) !== null) {
+        console.log("--- FOUND JS CODE BLOCK ---");
+        console.log("Match Index:", match.index, "| Code Length:", match[1].length);
         // Append unchanged text before this block
         result += markdown.slice(lastIndex, match.index);
         const code = match[1];
         try {
+            console.log("Parsing AST for this block...");
             const parser = new Parser(code);
             const ast = parser.parse();
+            console.log("AST Parsed Successfully. Evaluating...");
             const interpreter = new Interpreter();
             // Inject the SAME state reference for every block so that
             // mutations made by block N are visible to block N+1.
             interpreter['env'].define('state', state);
             interpreter.evaluate(ast);
+            console.log("Block Evaluation Success! Logs count:", interpreter.logs.length);
             result += interpreter.logs.join('\n');
         }
         catch (e) {
             // Gracefully log error via native console to aid bot creators.
-            console.log("Markdown Evaluator Error:", e.message);
+            console.error("Markdown Evaluator Error in this block. Code was:");
+            console.log(">>>>>>>>>>>>>>>>>>");
+            console.log(code);
+            console.log("<<<<<<<<<<<<<<<<<<");
+            console.error("Exception:", e.message);
             // Append empty string to strip the broken block without breaking JanitorAI UI.
             result += '';
         }
@@ -865,18 +875,22 @@ exports['__esModule'] = true;
 const markdown_evaluator_1 = __webpack_require__("./src/markdown-evaluator.ts");
 const context_parser_1 = __webpack_require__("./src/context-parser.ts");
 let injectedState = {};
-if (typeof context !== 'undefined' && context.chat && Array.isArray(context.chat) && context.chat.length >= 2) {
-    const targetMsg = context.chat[context.chat.length - 2];
-    if (targetMsg && targetMsg.content) {
-        injectedState = (0, context_parser_1.extractStateFromMessage)(targetMsg.content);
+if (typeof context !== 'undefined' && context.chat && context.chat.last_messages && Array.isArray(context.chat.last_messages) && context.chat.last_messages.length >= 2) {
+    const targetMsg = context.chat.last_messages[context.chat.last_messages.length - 2];
+    if (targetMsg && targetMsg.message) {
+        injectedState = (0, context_parser_1.extractStateFromMessage)(targetMsg.message);
     }
 }
 if (typeof context !== 'undefined' && context.character) {
-    if (context.character.personality) {
-        context.character.personality = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(context.character.personality, injectedState);
+    let newPersonality = context.character.personality;
+    let newScenario = context.character.scenario;
+    if (newPersonality) {
+        newPersonality = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(newPersonality, injectedState);
+        context.character.personality = newPersonality;
     }
-    if (context.character.scenario) {
-        context.character.scenario = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(context.character.scenario, injectedState);
+    if (newScenario) {
+        newScenario = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(newScenario, injectedState);
+        context.character.scenario = newScenario;
     }
 }
 
