@@ -13,18 +13,16 @@ Developing a Janitor AI bot involves three primary markdown files:
 
 1.  **The Personality File**: This file acts as the system prompt and instructions for the LLM. It defines the character, the rules, and the game logic (using JavaScript blocks).
 2.  **The Scenario File**: This file describes the detailed setting, background, and specific situation or world the bot/RPG takes place in. 
-    *(Note: The Janitor AI platform evaluates the Personality and Scenario files as two separate string invocations, but shares the `state` object between them. This means state mutations made by JS blocks in the Personality file are inherited by JavaScript blocks in the Scenario file. After the script runs, the Scenario text is simply concatenated to the Personality to form the `context.character.personality` prompt).*
+    *(Note: The Janitor AI system maintains the Personality and Scenario files as two separate global objects: `context.character.personality` and `context.character.scenario`. The `janitor-ai-eval` system evaluates them sequentially, sharing the `state` object. After replacing the JS blocks with their outputs in both fields, Janitor AI itself concatenates them to form the final prompt).*
 3.  **The First Message File**: This file acts as the initial introduction sent to the player, setting the immediate context and starting state (`context.chat.last_messages[0]`).
 
 ### The Execution Loop
 
 1.  The user (player) inputs a message.
-2.  The Janitor AI platform reads the Personality and Scenario files together as the character's core context (`context.character.personality`).
-3.  The `janitor-ai-eval` script parses the LLM's last output (or the First Message on turn 1) for a state object (e.g., `hp: 50`, `poisoned: yes`).
-4.  The script then executes each JavaScript block found in the Personality file sequentially, sharing the `state` object across all blocks.
-5.  Any mutations to the `state` object persist from block to block.
-6.  The `console.log()` outputs from the JS blocks dictate the narration or specific instructions for the next LLM generation.
-7.  The system calls the LLM with this modified prompt context to generate the response.
+2.  The `janitor-ai-eval` script parses the LLM's last output (or the First Message on turn 1) for a state object (e.g., `hp: 50`, `poisoned: yes`).
+3.  The script then executes each JavaScript block found in `context.character.personality` and `context.character.scenario` sequentially, sharing the same `state` object across all blocks.
+4.  The JS blocks are replaced by their `console.log()` outputs in those two respective context fields.
+5.  Janitor AI concatenates the mutated Personality and Scenario objects to form the final prompt and calls the LLM.
 
 ## Instructions
 
