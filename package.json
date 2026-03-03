@@ -6,6 +6,7 @@
     "scripts": {
         "clean": "rm -rf dist",
         "build": "webpack --config webpack.config.js && node patch-bundle.js",
+        "build:dice": "webpack --config webpack-dice-replacer.config.js && node patch-dice-replacer.js",
         "test": "jest"
     },
     "devDependencies": {
