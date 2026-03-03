@@ -1,18 +1,7 @@
-const bot_define_rules = true;
+/******/ "use strict";
+
+const bot_define_rules = false;
 const use_simplified_ack = true;
-
-// Define context explicitly for TypeScript since it runs in a custom environment
-declare const context: {
-    character: {
-        personality: string;
-        scenario: string;
-    };
-    chat: {
-        last_messages: string[];
-        message_count: number;
-    }
-};
-
 const commonPersonalityPrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
 
@@ -39,7 +28,6 @@ Whenever your task requires a [random number / dice rolls / dynamic data], you M
 
 **You Are a Stateless API:** > In case that you are not aware of, you are an AI behind a **stateless** API with no memory of past interactions. Therefore, you don't realize that the \`<PRE_COMPUTED_DATA>\` given above (fresh) is different from the \`<PRE_COMPUTED_DATA\` given for our past interactions (stale). For this reason, you MUST start at index 0 to use the fresh dice rolls rather than continuing from the index from the previous response.
 `;
-
 const defineRulesPrepend = `
 **Role Playing and Dice Rules:** > Establish grounded in reality yet gamified version of rules, trackers, modifiers, and thresholds using a combination of available dices (you have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts. 
 
@@ -51,7 +39,6 @@ Note: it is better to rule that action/attempt/contest is a pass/trigger if dice
 
 **[END OF CRITICAL SYSTEM INSTRUCTION]**
 `;
-
 const followRulesPrepend = `
 **Role Playing and Dice Rules:** > Use the game rules, trackers, modifiers, and thresholds described in your instructions using a combination of available dices (you have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts. 
 
@@ -61,14 +48,11 @@ Apply the rules before the narration of the event (action, contests etc.) starts
 
 **[END OF CRITICAL SYSTEM INSTRUCTION]**
 `;
-
 // Calculate effective context blocks based on user-defined flag
 const personalityPrepend = bot_define_rules
     ? commonPersonalityPrepend + "\n" + defineRulesPrepend
     : commonPersonalityPrepend + "\n" + followRulesPrepend;
-
 const turn_num = context.chat.message_count > 3 ? Math.trunc(context.chat.message_count / 2) : context.chat.message_count - 1;
-
 const commonPrepends = [
     `Turn ${turn_num}: I have received the following \`<PRE_COMPUTED_DATA>\` and I print them out here verbatim for references/debug as requested.\n.`,
     `Turn ${turn_num}: I prepare this response with the understanding that (even though not visible to me because I am behind a stateless API call) the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and they are different to the \`PRE_COMPUTED_DATA\` given to me in the previous turn/response. Therefore, I can safely use them starting from index 0.`,
@@ -83,66 +67,56 @@ const commonPrepends = [
     `Turn ${turn_num}: I completely understand that my previous responses were a bit lengthy. Therefore, I will control myself in this response not to exceed 350 words in total.`,
     `Turn ${turn_num}: I have reminded myself that I'm just a stateless API and I don't have memory of the instructions given to me for past interactions. Actually, the past instruction and the dice rolls are stale now and I should not use them even though I can see them in the past messages. Therefore, I will start from index 0 to use the fresh dice rolls.`
 ];
-
 const defineRulesPrepends = [
     `Turn ${turn_num}: In this response, I will think whether the action/attempt/contest the player ({{user}}) or an NPC is attempting in this turn requires a new rule. If so, I will establish the rule, trackers, modifiers, and thresholds using a combination of available dices (I know I have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts.`,
     `Turn ${turn_num}: In this response, I will think whether the action/attempt/contest the player ({{user}}) or an NPC is attempting in this turn requires a new rule. If so, I will establish a fun, gamified version of a rule (that is still grounded in reality) using a combination of available dices (I know I have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts.`,
     `Turn ${turn_num}: I understand that if I come up with a rule for important actions/attempt/contest/events for this Role Play, I will iterate them before using them.`
 ];
-
 // Merge the arrays or use simplified string based on the boolean flags
 let additionalPrependValue = "";
-
 if (use_simplified_ack) {
     const followRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that I have received the following \`<PRE_COMPUTED_DATA>\`, which is freshly generated for this turn/response and I will begin extracting values from index 0, ignoring all stale data from previous messages. Here is the \`<PRE_COMPUTED_DATA>\` I received for reference: \n.`;
-
     additionalPrependValue = followRulesAdditionalPrepend;
-} else {
+}
+else {
     const prepends = bot_define_rules
         ? [...commonPrepends, ...defineRulesPrepends]
         : commonPrepends;
     const idx = turn_num % prepends.length;
     additionalPrependValue = prepends[idx];
 }
-
 const additionalPrepend = `Start your response with the following text (before you proceed with the narration):\n` +
     additionalPrependValue;
-
 const effectivePrepend = personalityPrepend + "\n\n" + additionalPrepend;
-
 /**
- * Parses a string for <<xdy>> dice notation, rolls the dice, 
+ * Parses a string for <<xdy>> dice notation, rolls the dice,
  * and replaces the notation with the total sum.
  * @param {string} text - The input text containing dice notations.
  * @returns {string} The text with dice notations replaced by roll totals.
  */
-function rollAndReplaceDice(text: string): string {
+function rollAndReplaceDice(text) {
     // Regex to match the pattern <<xdy>>. 
     // Captures 'x' (number of dice) and 'y' (number of sides).
     const diceRegex = /<<(\d+)d(\d+)>>/g;
-
-    return text.replace(diceRegex, (match: string, xStr: string, yStr: string) => {
+    return text.replace(diceRegex, (match, xStr, yStr) => {
         const numDice = parseInt(xStr, 10);
         const numSides = parseInt(yStr, 10);
-
         // Handle edge cases where 0 dice or 0 sides are requested
         if (numDice === 0 || numSides === 0) {
             return "0";
         }
-
         let total = 0;
         // Roll the dice 'x' times
         for (let i = 0; i < numDice; i++) {
             // Generate a random number between 1 and 'y'
             total += Math.floor(Math.random() * numSides) + 1;
         }
-
         // Return the total as a string to replace the match
         return total.toString();
     });
 }
-
 // --- Example Usage ---
 const newPersonality = effectivePrepend + "\n\n" + context.character.personality;
 context.character.personality = rollAndReplaceDice(newPersonality);
 context.character.scenario = rollAndReplaceDice(context.character.scenario);
+

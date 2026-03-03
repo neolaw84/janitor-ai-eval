@@ -88,12 +88,20 @@ she is very tired.
 ## Usage
 The entry script located at `src/index.ts` automatically runs `evaluateMarkdownCodeBlocks` on the global Janitor AI `context`.
 
-To build the minified browser-ready payload:
+To build the minified browser-ready payload for the standard evaluator:
 ```bash
 npm install
 npm run build
 ```
 This produces `dist/bundle.js` which can be injected directly into the Janitor AI platform without dependencies.
+
+To build the engine for the "LLM Free Reign / Dungeon Master Bot" (`dice-replacer`) pattern:
+```bash
+npm run build:dice
+```
+This automatically produces two distinct engines in the `dist` folder:
+- `dice-replacer.js`: The standard Free Reign engine (`bot_define_rules = true`).
+- `dice-replacer-strict.js`: The Strict Narrator engine (`bot_define_rules = false`).
 
 ## Testing
 The behavior of the Abstract Syntax Tree evaluator has comprehensive Jest coverage.

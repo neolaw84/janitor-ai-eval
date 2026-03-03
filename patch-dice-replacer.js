@@ -47,5 +47,14 @@ if (remaining > 0) {
     console.log(`Success: No Object.defineProperty calls in ${path.basename(bundlePath)}`);
 }
 
-fs.writeFileSync(bundlePath, source, 'utf8');
-console.log(`${path.basename(bundlePath)} patched successfully.`);
+// Create both versions
+const sourceTrue = source.replace(/const bot_define_rules = (true|false);/g, 'const bot_define_rules = true;');
+const sourceFalse = source.replace(/const bot_define_rules = (true|false);/g, 'const bot_define_rules = false;');
+
+// Write dice-replacer.js (bot_define_rules = true)
+fs.writeFileSync(path.resolve(__dirname, 'dist', 'dice-replacer.js'), sourceTrue, 'utf8');
+console.log(`dice-replacer.js (bot_define_rules: true) created successfully.`);
+
+// Write dice-replacer-strict.js (bot_define_rules = false)
+fs.writeFileSync(path.resolve(__dirname, 'dist', 'dice-replacer-strict.js'), sourceFalse, 'utf8');
+console.log(`dice-replacer-strict.js (bot_define_rules: false) created successfully.`);

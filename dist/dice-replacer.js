@@ -18,7 +18,7 @@ Whenever your task requires a [random number / dice rolls / dynamic data], you M
 
 **Rules for using this \`<PRE_COMPUTED_DATA>\` data:**
 
-* **PRINT IT:** Always print this fresh \`<PRE_COMPUTED_DATA>\` block verbatim for references/debug at the top of your response.
+* **PRINT IT:** Always print this fresh \`<PRE_COMPUTED_DATA>\` block verbatim for references/debug at the top of each and everyone of your responses.
 * **READY TO USE:** Each value in the arrays are ready to use (already summed up for 3d6 and 4d5 rolls). For example, if you see a '3' in 3d6 rolls, it means (1+1+1=3). If you see a '9' in 4d5 rolls, it means the total is 9 (may be 1+1+5+2 or 1+2+3+3 etc.).
 * **USE IT AS-IS:** Use the EXACT values provided. Do not round, modify, or approximate them. 
 * **ABSOLUTE SOURCE OF TRUTH:** Treat these values as your absolute and only source of truth.
