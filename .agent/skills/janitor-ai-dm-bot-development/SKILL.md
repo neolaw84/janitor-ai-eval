@@ -55,6 +55,22 @@ Since this pattern relies strictly on the `rollAndReplaceDice` string replacemen
 *   **No Code Blocks:** Do not try to write `if/else` clusters or `console.log("...")`.
 *   **Leave Logic to the LLM:** Ensure the system instructions adequately tell the LLM how to parse the `PRE_COMPUTED_DATA` and apply it to rules.
 
+## Best Practices for Structuring DM Rules
+
+When helping users design the content for a strict Narrator/DM bot (where `bot_define_rules = false`), instruct them to use these narrative-friendly scaffolding techniques to help the structural consistency of the LLM:
+
+1. **Dynamic Modifier Assessment over Static Values:**
+   Instead of trying to hardcode strict, unyielding math (e.g., `Class A always gets +2`), instruct the LLM to dynamically determine skill modifiers by evaluating a combination of:
+   - **Permanent Characteristics** (role, experience, physical traits).
+   - **Situational Characteristics** (environment, desperation, specific tactics used).
+   This leans into the LLM's strength (narrative comprehension) rather than fighting its weakness (rigid math compliance).
+
+2. **NPC Archetype Matrices:**
+   Since the DM bot doesn't have a rigid state engine to spawn characters programmatically, providing a clear matrix of "Archetypes" (grouping traits like appearance, demeanor, and power-level/thresholds) gives the LLM a highly effective shorthand to ensure NPCs feel mechanically consistent and balanced when introduced.
+
+3. **Standardized Threshold Formulas (The "Slow Burn" Engine):**
+   Demonstrating the explicit formula format `Roll +/- Modifiers >= Target Threshold` combined with rolling trackers (like a `0-to-100` progress meter or a moon phase tracker) is a perfect template to show developers how to create a structured "slow-burn" game loop that the LLM can easily enforce and update.
+
 ## References and Templates
 
 For the "LLM Free Reign / Dice-Replacer" DM bot, you do not need specific structural templates because the compiled `dist/dice-replacer.js` file dynamically handles the `<PRE_COMPUTED_DATA>` injection and the stringent DM prompts. Simply guide the user to create their character traits in `personality.md` and leave `scenario.md` mostly blank!
