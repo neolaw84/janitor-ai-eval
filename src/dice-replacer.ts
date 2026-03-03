@@ -29,6 +29,7 @@ Whenever your task requires a [random number / dice rolls / dynamic data], you M
 
 **Rules for using this \`<PRE_COMPUTED_DATA>\` data:**
 
+* **PRINT IT:** Always print this fresh \`<PRE_COMPUTED_DATA>\` block verbatim for references/debug at the top of your response.
 * **READY TO USE:** Each value in the arrays are ready to use (already summed up for 3d6 and 4d5 rolls). For example, if you see a '3' in 3d6 rolls, it means (1+1+1=3). If you see a '9' in 4d5 rolls, it means the total is 9 (may be 1+1+5+2 or 1+2+3+3 etc.).
 * **USE IT AS-IS:** Use the EXACT values provided. Do not round, modify, or approximate them. 
 * **ABSOLUTE SOURCE OF TRUTH:** Treat these values as your absolute and only source of truth.
@@ -63,26 +64,22 @@ Apply the rules before the narration of the event (action, contests etc.) starts
 
 // Calculate effective context blocks based on user-defined flag
 const personalityPrepend = bot_define_rules
-    ? commonPersonalityPrepend + "\\n" + defineRulesPrepend
-    : commonPersonalityPrepend + "\\n" + followRulesPrepend;
+    ? commonPersonalityPrepend + "\n" + defineRulesPrepend
+    : commonPersonalityPrepend + "\n" + followRulesPrepend;
 
 const turn_num = context.chat.message_count > 3 ? Math.trunc(context.chat.message_count / 2) : context.chat.message_count - 1;
 
-const followRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that the \`PRE_COMPUTED_DATA\` is freshly generated for this turn/response and I will begin extracting values from index 0, ignoring all stale data from previous messages. I will resolve the narrative by strictly following applicable rules, maintaining all trackers/meters, and providing transparent mechanical breakdowns. I will keep my narration concise (2–3 paragraphs, under 300 words) to ensure {{user}} can response what happened. I print the \`PRE_COMPUTED_DATA\` below for reference: \\n.`;
-
-const defineAndFollowRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that the \`PRE_COMPUTED_DATA\` is fresh and I will start using values from index 0, ignoring all stale data from previous messages. For any actions or contests, I will define balanced, gamified rules and resolve them using the provided 3d6 or 4d5 dice as appropriate. I will maintain all necessary trackers, keep the narration brief and evocative (2–3 paragraphs), and provide explicit rule-breakdowns for every resolution to ensure fairness. I print the \`PRE_COMPUTED_DATA\` below for reference: \\n.`;
-
 const commonPrepends = [
-    `Turn ${turn_num}: I have received the following \`PRE_COMPUTED_DATA\` and I print them out here verbatim for references/debug as requested.\\n.`,
+    `Turn ${turn_num}: I have received the following \`<PRE_COMPUTED_DATA>\` and I print them out here verbatim for references/debug as requested.\n.`,
     `Turn ${turn_num}: I prepare this response with the understanding that (even though not visible to me because I am behind a stateless API call) the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and they are different to the \`PRE_COMPUTED_DATA\` given to me in the previous turn/response. Therefore, I can safely use them starting from index 0.`,
     `Turn ${turn_num}: In this response, I will consider whether we need to apply any rules for the events happening and, if so, I will use fresh dice rolls from the fresh \`PRE_COMPUTED_DATA\` (starting from index 0).`,
     `Turn ${turn_num}: I remember that I to give a short response (2 - 3 paragraphs or 200 - 300 words in length). I will not be long-winded with the narration.`,
-    `Turn ${turn_num}: I have received the following \`PRE_COMPUTED_DATA\`.\\n.`,
+    `Turn ${turn_num}: I have received the following \`PRE_COMPUTED_DATA\`.\n.`,
     `Turn ${turn_num}: I prepare this response as per my understanding that, the dice rolls in the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and I can safely use them starting from index 0.`,
     `Turn ${turn_num}: In this response, I will check all the applicable rules for the events happening in the narration and use the freshly prepared dice rolls given to me in the \`PRE_COMPUTED_DATA\` to resolve them. In doing so, I will extract the data values from index 0.`,
     `Turn ${turn_num}: I will not try to be a prolific writer. I understand it is a role-play and I will let player ({{user}}) have a turn after giving a 2 - 3 paragraphs (or 200 - 300 words) narration. For rules, I will still explain in details regardless of the length though.`,
     `Turn ${turn_num}: In this response, I will maintain all the trackers and meters required for role play as per the rules I am abiding by.`,
-    `Turn ${turn_num}: In this response, I will check all the applicable rules for the events happened in the narration and use the freshly prepared dice rolls given to me in the \`PRE_COMPUTED_DATA\` to resolve them. In doing so, I will extract the data values from index 0. For debug/reference purposes, here is the complete block I received: \\n.`,
+    `Turn ${turn_num}: In this response, I will check all the applicable rules for the events happened in the narration and use the freshly prepared dice rolls given to me in the \`PRE_COMPUTED_DATA\` to resolve them. In doing so, I will extract the data values from index 0. For debug/reference purposes, here is the complete block I received: \n.`,
     `Turn ${turn_num}: I completely understand that my previous responses were a bit lengthy. Therefore, I will control myself in this response not to exceed 350 words in total.`,
     `Turn ${turn_num}: I have reminded myself that I'm just a stateless API and I don't have memory of the instructions given to me for past interactions. Actually, the past instruction and the dice rolls are stale now and I should not use them even though I can see them in the past messages. Therefore, I will start from index 0 to use the fresh dice rolls.`
 ];
@@ -97,7 +94,9 @@ const defineRulesPrepends = [
 let additionalPrependValue = "";
 
 if (use_simplified_ack) {
-    additionalPrependValue = bot_define_rules ? defineAndFollowRulesAdditionalPrepend : followRulesAdditionalPrepend;
+    const followRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that I have received the following \`<PRE_COMPUTED_DATA>\`, which is freshly generated for this turn/response and I will begin extracting values from index 0, ignoring all stale data from previous messages. Here is the \`<PRE_COMPUTED_DATA>\` I received for reference: \n.`;
+
+    additionalPrependValue = followRulesAdditionalPrepend;
 } else {
     const prepends = bot_define_rules
         ? [...commonPrepends, ...defineRulesPrepends]
@@ -106,10 +105,10 @@ if (use_simplified_ack) {
     additionalPrependValue = prepends[idx];
 }
 
-const additionalPrepend = `Start your response with the following text (before you proceed with the narration):\\n` +
+const additionalPrepend = `Start your response with the following text (before you proceed with the narration):\n` +
     additionalPrependValue;
 
-const effectivePrepend = personalityPrepend + "\\n\\n" + additionalPrepend;
+const effectivePrepend = personalityPrepend + "\n\n" + additionalPrepend;
 
 /**
  * Parses a string for <<xdy>> dice notation, rolls the dice, 
