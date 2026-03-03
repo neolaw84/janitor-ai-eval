@@ -1,8 +1,7 @@
 /******/ "use strict";
 
-// Flag to determine if the LLM should define its own rules dynamically (true)
-// or follow the scripted rules provided in the context (false).
 const bot_define_rules = true;
+const use_simplified_ack = true;
 const commonPersonalityPrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
 
@@ -19,6 +18,7 @@ Whenever your task requires a [random number / dice rolls / dynamic data], you M
 
 **Rules for using this \`<PRE_COMPUTED_DATA>\` data:**
 
+* **READY TO USE:** Each value in the arrays are ready to use (already summed up for 3d6 and 4d5 rolls). For example, if you see a '3' in 3d6 rolls, it means (1+1+1=3). If you see a '9' in 4d5 rolls, it means the total is 9 (may be 1+1+5+2 or 1+2+3+3 etc.).
 * **USE IT AS-IS:** Use the EXACT values provided. Do not round, modify, or approximate them. 
 * **ABSOLUTE SOURCE OF TRUTH:** Treat these values as your absolute and only source of truth.
 * **NOT EXAMPLES:** These are **NOT** examples; they are your hard-coded inputs for your response, which are different from the inputs for your previous response.
@@ -52,6 +52,8 @@ const personalityPrepend = bot_define_rules
     ? commonPersonalityPrepend + "\\n" + defineRulesPrepend
     : commonPersonalityPrepend + "\\n" + followRulesPrepend;
 const turn_num = context.chat.message_count > 3 ? Math.trunc(context.chat.message_count / 2) : context.chat.message_count - 1;
+const followRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that the \`PRE_COMPUTED_DATA\` is freshly generated for this turn/response and I will begin extracting values from index 0, ignoring all stale data from previous messages. I will resolve the narrative by strictly following applicable rules, maintaining all trackers/meters, and providing transparent mechanical breakdowns. I will keep my narration concise (2–3 paragraphs, under 300 words) to ensure {{user}} can response what happened. I print the \`PRE_COMPUTED_DATA\` below for reference: \\n.`;
+const defineAndFollowRulesAdditionalPrepend = `Turn ${turn_num}: I am a stateless API; I acknowledge that the \`PRE_COMPUTED_DATA\` is fresh and I will start using values from index 0, ignoring all stale data from previous messages. For any actions or contests, I will define balanced, gamified rules and resolve them using the provided 3d6 or 4d5 dice as appropriate. I will maintain all necessary trackers, keep the narration brief and evocative (2–3 paragraphs), and provide explicit rule-breakdowns for every resolution to ensure fairness. I print the \`PRE_COMPUTED_DATA\` below for reference: \\n.`;
 const commonPrepends = [
     `Turn ${turn_num}: I have received the following \`PRE_COMPUTED_DATA\` and I print them out here verbatim for references/debug as requested.\\n.`,
     `Turn ${turn_num}: I prepare this response with the understanding that (even though not visible to me because I am behind a stateless API call) the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and they are different to the \`PRE_COMPUTED_DATA\` given to me in the previous turn/response. Therefore, I can safely use them starting from index 0.`,
@@ -71,13 +73,20 @@ const defineRulesPrepends = [
     `Turn ${turn_num}: In this response, I will think whether the action/attempt/contest the player ({{user}}) or an NPC is attempting in this turn requires a new rule. If so, I will establish a fun, gamified version of a rule (that is still grounded in reality) using a combination of available dices (I know I have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts.`,
     `Turn ${turn_num}: I understand that if I come up with a rule for important actions/attempt/contest/events for this Role Play, I will iterate them before using them.`
 ];
-// Merge the arrays based on the boolean flag
-const prepends = bot_define_rules
-    ? [...commonPrepends, ...defineRulesPrepends]
-    : commonPrepends;
-const idx = turn_num % prepends.length;
-const additionalPrepend = `Start your response with the following text (if there is a place holder, resolve them):\\n` +
-    prepends[idx];
+// Merge the arrays or use simplified string based on the boolean flags
+let additionalPrependValue = "";
+if (use_simplified_ack) {
+    additionalPrependValue = bot_define_rules ? defineAndFollowRulesAdditionalPrepend : followRulesAdditionalPrepend;
+}
+else {
+    const prepends = bot_define_rules
+        ? [...commonPrepends, ...defineRulesPrepends]
+        : commonPrepends;
+    const idx = turn_num % prepends.length;
+    additionalPrependValue = prepends[idx];
+}
+const additionalPrepend = `Start your response with the following text (before you proceed with the narration):\\n` +
+    additionalPrependValue;
 const effectivePrepend = personalityPrepend + "\\n\\n" + additionalPrepend;
 /**
  * Parses a string for <<xdy>> dice notation, rolls the dice,
