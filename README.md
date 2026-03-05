@@ -4,7 +4,7 @@ A standalone, dependency-free JavaScript sandbox for the [Janitor AI](https://ja
 
 > **Don't know how to code or dread writing long prompts?** You have two options:
 > 1. **Just copy a compiled script.** The pre-compiled files are already included in this repository. Copy the contents of whichever script matches your chosen pattern (see [Choosing Your Script](#choosing-your-script)) and paste it into your bot's Advanced Script box on Janitor AI.
-> 2. **Use an agentic IDE.** Tools like [Antigravity](https://antigravity.ai) *(no association with this repository)* can read the agent skills bundled in this repo and write all your bot files from a single conversational prompt. See [No-Code Bot Creation with an Agentic IDE](#no-code-bot-creation-with-an-agentic-ide).
+> 2. **Use an agentic IDE.** Tools like Antigravity *(no association with this repository)* can read the agent skills bundled in this repo and write all your bot files from a single conversational prompt. See [No-Code Bot Creation with an Agentic IDE](#no-code-bot-creation-with-an-agentic-ide).
 
 ---
 
@@ -250,7 +250,7 @@ Use these built-in placeholders anywhere in your prompts and `console.log()` out
 
 ## No-Code Bot Creation with an Agentic IDE
 
-> **Don't want to write code or craft detailed prompts yourself?** Agentic IDEs—tools that use an AI agent to perform coding and writing tasks on your behalf—can build your entire bot from a single conversational request. [Antigravity](https://antigravity.ai) *(no association with this repository)* is one such tool that supports the skill definitions packaged in this repo.
+> **Don't want to write code or craft detailed prompts yourself?** Agentic IDEs—tools that use an AI agent to perform coding and writing tasks on your behalf—can build your entire bot from a single conversational request. Antigravity *(no association with this repository)* is one such tool that supports the skill definitions packaged in this repo.
 
 This repository ships two agent skills under `.agent/skills/`. An agentic IDE compatible with the [agentskills.io](https://agentskills.io) specification will automatically load the right skill when it detects your intent, then generate all three bot files (`personality.md`, `scenario.md`, `first_message.md`) for you, ready to paste into the Janitor AI bot editor.
 
