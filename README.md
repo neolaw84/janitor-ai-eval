@@ -2,7 +2,9 @@
 
 A standalone, dependency-free JavaScript sandbox for the [Janitor AI](https://janitorai.com) scripting environment. It lets you embed simple JavaScript blocks inside your bot's Personality and Scenario prompts to drive deterministic game logic—health tracking, dice rolls, branching consequences—without relying on the LLM to do the math.
 
-> **Don't know how to code?** You don't need to build this yourself. The pre-compiled files are already included in this repository. Copy the contents of whichever script matches your chosen pattern (see [Choosing Your Script](#choosing-your-script)) and paste it into your bot's Advanced Script box on Janitor AI.
+> **Don't know how to code or dread writing long prompts?** You have two options:
+> 1. **Just copy a compiled script.** The pre-compiled files are already included in this repository. Copy the contents of whichever script matches your chosen pattern (see [Choosing Your Script](#choosing-your-script)) and paste it into your bot's Advanced Script box on Janitor AI.
+> 2. **Use an agentic IDE.** Tools like [Antigravity](https://antigravity.ai) *(no association with this repository)* can read the agent skills bundled in this repo and write all your bot files from a single conversational prompt. See [No-Code Bot Creation with an Agentic IDE](#no-code-bot-creation-with-an-agentic-ide).
 
 ---
 
@@ -15,8 +17,9 @@ A standalone, dependency-free JavaScript sandbox for the [Janitor AI](https://ja
 5. [Two Bot Philosophies](#two-bot-philosophies)
 6. [The Dice-Replacer Scripts (Standalone Alternatives)](#the-dice-replacer-scripts-standalone-alternatives)
 7. [Building a Bot](#building-a-bot)
-8. [Quick Example](#quick-example)
-9. [Build & Test](#build--test)
+8. [No-Code Bot Creation with an Agentic IDE](#no-code-bot-creation-with-an-agentic-ide)
+9. [Quick Example](#quick-example)
+10. [Build & Test](#build--test)
 
 ---
 
@@ -242,6 +245,94 @@ Use these built-in placeholders anywhere in your prompts and `console.log()` out
 | `{{poss}}` | Possessive pronoun (his/her/their) |
 | `{{poss_p}}` | Plural possessive (his/hers/theirs) |
 | `{{ref}}` | Reflexive pronoun (himself/herself/themselves) |
+
+---
+
+## No-Code Bot Creation with an Agentic IDE
+
+> **Don't want to write code or craft detailed prompts yourself?** Agentic IDEs—tools that use an AI agent to perform coding and writing tasks on your behalf—can build your entire bot from a single conversational request. [Antigravity](https://antigravity.ai) *(no association with this repository)* is one such tool that supports the skill definitions packaged in this repo.
+
+This repository ships two agent skills under `.agent/skills/`. An agentic IDE compatible with the [agentskills.io](https://agentskills.io) specification will automatically load the right skill when it detects your intent, then generate all three bot files (`personality.md`, `scenario.md`, `first_message.md`) for you, ready to paste into the Janitor AI bot editor.
+
+---
+
+### Skill 1: `janitor-ai-bot-development` — Script as Authority
+
+**Use when:** You want `dist/bundle.js` and deterministic, code-driven game logic.
+
+The skill activates whenever you ask the agent to **create, modify, or structure a Janitor AI bot**.
+
+**Example prompts:**
+
+```
+Create a Janitor AI RPG bot where the player fights zombies.
+Track HP and gold. Use the Script as Authority pattern.
+```
+
+```
+Build a Janitor AI dungeon bot with a 20-sided-die attack system.
+The script should handle all the math, not the LLM.
+```
+
+```
+Make a Janitor AI bot for a text adventure with stamina and poison mechanics.
+```
+
+The agent will produce all three files, including JS logic blocks in `scenario.md` that pre-calculate every possible outcome and instruct the LLM to narrate only the correct branch.
+
+---
+
+### Skill 2: `janitor-ai-dm-bot-development` — DM Free Mode and Strict Narrator Mode
+
+**Use when:** You want `dist/dice-replacer.js` or `dist/dice-replacer-strict.js`.
+
+The skill activates whenever you ask the agent to **create an unstructured Janitor AI DM or RPG game loop**. Within this skill, the agent chooses between the two engine variants based on whether you ask for **free, open-ended rules** or **strict, deterministic rules**—so your phrasing drives the engine selection.
+
+#### Free DM Mode (`dice-replacer.js`) — LLM invents rules on the fly
+
+**Example prompts:**
+
+```
+Create an unstructured Janitor AI DM bot set in a grimdark fantasy world.
+Let the LLM invent the rules dynamically.
+```
+
+```
+Build a Janitor AI Dungeon Master bot for a horror setting.
+Use the dice-replacer engine in free DM mode.
+```
+
+```
+Make a Janitor AI DM bot for a sci-fi RPG.
+I don't want to write any game rules—let the AI figure it out.
+```
+
+The agent will create a minimal `personality.md` and `first_message.md` (and leave `scenario.md` mostly blank). The `dice-replacer.js` engine automatically injects the DM system instructions and fresh dice arrays at runtime—you do not need to add them.
+
+#### Strict Narrator Mode (`dice-replacer-strict.js`) — LLM follows rules you define
+
+Including phrases like **"strict"**, **"deterministic rules"**, or **"follow rules explicitly"** tells the agent to use the strict engine variant and to write a fully-specified `scenario.md`.
+
+**Example prompts:**
+
+```
+Create an unstructured Janitor AI DM bot with strict deterministic rules.
+I want explicit damage formulas and phase-based encounter loops.
+Use the dice-replacer-strict engine.
+```
+
+```
+Build a Janitor AI strict narrator bot for a fantasy RPG.
+Define all combat math in the scenario file.
+The LLM must follow the rules, not invent them.
+```
+
+```
+Make a Janitor AI DM bot where every rule is written down explicitly.
+Use the strict dice-replacer mode so the LLM cannot freelance the numbers.
+```
+
+The agent will produce a detailed `personality.md`, a fully-specified `scenario.md` (with damage formulas, encounter phases, and NPC archetype tables), and a `first_message.md` that includes the required Turn 0 seeding block for the stateless-API bypass.
 
 ---
 
