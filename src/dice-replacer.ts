@@ -53,7 +53,7 @@ const defineRulesPrependsAdv = [
 let additionalPrependValue = "";
 
 if (use_simplified_ack) {
-    additionalPrependValue = `Turn ${turn_num}: Here is the fresh \`<PRE_COMPUTED_DATA>\` I have received from the CRITICAL SYSTEM INSTRUCTIONS for this turn:\n`;
+    additionalPrependValue = `Turn ${turn_num}: I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
 } else {
     const prepends = bot_define_rules
         ? [...commonPrependsAdv, ...defineRulesPrependsAdv]
@@ -101,7 +101,7 @@ The computer script that is calling you has access to a true Random Number Gener
 * **START AT INDEX 0:** For this turn, you MUST start using the values from index 0 for each array in the \`<PRE_COMPUTED_DATA>\` block provided here. Disregard the messages history.
 * **RESET AT THE END:** In case you have exhausted an array in the \`<PRE_COMPUTED_DATA>\` block provided here. **You MUST reset the index to 0 and restart.**.
 
-**You Are a Stateless API:** > In case that you are not aware of, you are an AI behind a **stateless** API with no memory of past interactions. Therefore, you don't realize that the \`<PRE_COMPUTED_DATA>\` given above (fresh) is different from the \`<PRE_COMPUTED_DATA\` given for our past interactions (stale). For this reason, you MUST start at index 0 to use the fresh dice rolls rather than continuing from the index from the previous response.
+**You Are a Stateless API:** > In case that you are not aware of, you are an AI behind a **stateless** API with no memory of past interactions. Therefore, I am reminding you that the \`<PRE_COMPUTED_DATA>\` given above (fresh) is different from the \`<PRE_COMPUTED_DATA\` given for our past interactions (stale). You MUST start at index 0 to use the fresh dice rolls rather than continuing from the index from the previous response.
 
 ${rulePrepend}
 
