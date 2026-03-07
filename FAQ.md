@@ -6,10 +6,10 @@
 This project is a small, specialized toolkit that lets Janitor AI bots run simple JavaScript code logic or generate real dice rolls *during* a roleplay. It allows you to create bots that can track health, roll stats, manage inventories, or act as uncompromising Dungeon Masters.
 
 ### How do I use it? Do I need my own server?
-No server is needed! The code is compiled into a single file (`dist/bundle.js` or `dist/dice-replacer.js`) that you paste directly into your Advanced Script box and attach to your bot. When the Janitor AI website loads your bot, it automatically reads the code and runs the logic before it sends the chat to the AI.
+No server is needed! The code is compiled into a single file (`dist/bundle.js` or one of the `dist/dice-replacer-*.js` files) that you paste directly into your Advanced Script box and attach to your bot. When the Janitor AI website loads your bot, it automatically reads the code and runs the logic before it sends the chat to the AI.
 
 ### I don't know JavaScript or TypeScript. How do I make use of it?
-You don't need to know how to code to use this! The pre-compiled `.js` files are already included in this GitHub repository. You can simply copy the text from `dist/bundle.js` or `dist/dice-replacer.js` and paste it directly into the Advanced Script box and attach to your bot.
+You don't need to know how to code to use this! The pre-compiled `.js` files are already included in this GitHub repository. You can simply copy the text from `dist/bundle.js` or a `dist/dice-replacer-*.js` variant and paste it directly into the Advanced Script box and attach to your bot.
 
 For the actual bot development (setting up the rules in your Personality and Scenario), you can:
 1. Upload the files from this GitHub repository to the Google Gemini app (as code) and ask it to write the bot logic for you.
@@ -23,13 +23,17 @@ In this design, you write rigid JavaScript inside your scenario that dictates *e
 ### What is the "LLM Free Reign / Dice-Replacer" philosophy?
 Some AI models (like DeepSeek) have a hard time following strict scripting rules and want to narrate deeply. Instead of fighting them, the `dice-replacer` gives the AI true random dice rolls (e.g., `<PRE_COMPUTED_DATA> 3d6: [9, 14, 5...]`). You then instruct the AI to act as a Dungeon Master, invent the rules dynamically, and use the dice rolls one by one to determine if the player succeeds.
 
-*Note: The "Router" philosophy and the "Dice-Replacer" philosophy are two distinct ways to build a bot using this repo. You must choose exactly one philosophy for any given bot you create, they are not meant to be mixed.*
+*Note: The "Router" philosophy and the "Dice-Replacer" philosophy are generally two distinct ways to build a bot using this repo. You typically choose exactly one philosophy, but advanced users can learn how to combine them sequentially (see the "Advanced Usage" section in the README).*
 
-### What is the `bot_define_rules` flag in `dice-replacer.js`?
-By default, the `dice-replacer` pattern gives the LLM total freedom to invent the game rules dynamically (as a Dungeon Master). However, if you open the `dist/dice-replacer.js` file (or the `.ts` source), you will find a boolean flag at the very top: `const bot_define_rules = true;`. 
+### Can I use both the Javascript evaluator and the dice replacer together?
+Yes, using an advanced sequence. You can copy the contents of `dist/bundle.js` and `dist/dice-replacer-vanilla.js` into your bot's script box sequentially. Depending on which script is placed on top, you can either have the dice roll first (so your javascript can read the random number) or have your javascript evaluate first (and output raw `<<xdy>>` templates for the dice replacer to process last). **Do not use the `dm` or `strict` dice-replacers for this—only the `vanilla` variant.**
 
-*   **If `true`:** The AI acts as the DM and invents the rules on the fly. You can leave your `scenario.md` blank.
-*   **If `false`:** The AI is instructed to act merely as a narrator that *strictly follows the rules* you have manually written. In this case, you must thoroughly define your game mechanics, trackers, and dice thresholds in your `scenario.md` and `personality.md` files for the AI to read.
+### What is the `Mode` enum in `dice-replacer.ts`?
+By default, there are 5 different `Mode` enums used to compile 5 variants of the `dice-replacer` pattern.
+
+*   **`DM` vs `Strict`**: If `DM`, the AI acts as the DM and invents the rules on the fly. You can leave your `scenario.md` blank. If `Strict`, the AI is instructed to act merely as a narrator that *strictly follows the rules* you have manually written.
+*   **`Simple` vs `Advanced`**: The simple modes prepend a static stateless API bypass acknowledgment. Advamced modes use a rotating, turn-based nuanced response to improve instruction salience.
+*   **`Vanilla`**: Completely vanilla dice replacement without any prepends or rules injected.
 
 ---
 

@@ -31,16 +31,17 @@ Janitor AI's scripting environment prohibits `eval()` and `new Function()`—bot
 
 ## Choosing Your Script
 
-Three compiled scripts are available in `dist/`. You load **exactly one** per bot—they are mutually exclusive.
+Three compiled script patterns are available in `dist/`. In most simple setups, you will load **exactly one** per bot—they are generally mutually exclusive. However, you can combine them for complex workflows (see [Advanced Usage](#advanced-usage-combining-scripts)).
 
 | Script | Build command | When to use |
 |--------|--------------|-------------|
 | `dist/bundle.js` | `npm run build` | You want to embed JavaScript blocks directly in your bot's Personality/Scenario and have the evaluator run deterministic game logic before every LLM response. |
-| `dist/dice-replacer.js` | `npm run build:dice` | You want the LLM to act as a free-form Dungeon Master and invent rules on the fly. Fresh dice rolls are injected automatically; the LLM decides how to apply them. |
-| `dist/dice-replacer-strict.js` | `npm run build:dice` | Same injection mechanism as above, but the LLM is told to follow rules you have written explicitly rather than invent them. |
+| `dist/dice-replacer-dm-simple.js`<br>`dist/dice-replacer-dm-advanced.js` | `npm run build:dice` | You want the LLM to act as a free-form Dungeon Master and invent rules on the fly. Fresh dice rolls are injected automatically; the LLM decides how to apply them. Advanced uses rotating prepends. |
+| `dist/dice-replacer-strict-simple.js`<br>`dist/dice-replacer-strict-advanced.js` | `npm run build:dice` | Same injection mechanism as above, but the LLM is told to follow rules you have written explicitly rather than invent them. |
+| `dist/dice-replacer-vanilla.js` | `npm run build:dice` | Completely vanilla dice replacement without any prepends or rules injected. |
 
 > `bundle.js` uses the full custom AST evaluator described in [How It Works](#how-it-works-bundlejs) and [The Sandbox](#the-sandbox).  
-> The two `dice-replacer` scripts are **standalone alternatives** with an entirely different pipeline—see [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives).
+> The `dice-replacer` scripts are **standalone alternatives** with an entirely different pipeline—see [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives).
 
 ---
 
@@ -138,7 +139,7 @@ The JavaScript evaluates *before* the LLM responds. The script cannot know what 
 
 ### 2. LLM Free Reign / Dungeon Master
 
-**Use this with:** `dist/dice-replacer.js` or `dist/dice-replacer-strict.js` *(standalone scripts — see [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives))*
+**Use this with:** `dist/dice-replacer-dm-simple.js`, `dist/dice-replacer-dm-advanced.js`, `dist/dice-replacer-strict-simple.js`, or `dist/dice-replacer-strict-advanced.js` *(standalone scripts — see [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives))*
 
 Instead of making the LLM follow a rigid script, this pattern injects freshly-rolled dice arrays into the personality prompt *before* the LLM call. The LLM is instructed to act as an uncompromising Dungeon Master—inventing or applying rules, then consuming the pre-computed dice sequentially to resolve them. Because the dice are real random numbers rather than LLM-hallucinated ones, outcomes remain unpredictable and fair even when the LLM has full narrative freedom.
 
@@ -151,7 +152,7 @@ Instead of making the LLM follow a rigid script, this pattern injects freshly-ro
 
 ## The Dice-Replacer Scripts (Standalone Alternatives)
 
-The `dice-replacer.js` and `dice-replacer-strict.js` scripts are **drop-in replacements for `bundle.js`**. They share no code with the AST evaluator. Instead of parsing JS blocks, they:
+The `dice-replacer-*.js` scripts are **drop-in replacements for `bundle.js`**. They share no code with the AST evaluator. Instead of parsing JS blocks, they:
 
 1. **Replace `<<xdy>>` placeholders** — The source text (personality, scenario) may contain notation like `<<3d6>>`. The script rolls that dice expression and substitutes the summed total in place before the prompt is assembled.
 2. **Inject `<PRE_COMPUTED_DATA>`** — The script automatically prepends a block of fresh dice arrays and the full DM system instructions to `context.character.personality` at runtime. **Do not add this block or the DM prompts manually to your personality file.**
@@ -161,24 +162,51 @@ Currently supported dice types in the pre-computed block: `3d6` and `4d5`.
 
 ### Choosing an Engine
 
-`npm run build:dice` produces two output files controlled by the `bot_define_rules` flag in `src/dice-replacer.ts`:
+`npm run build:dice` produces five output files controlled by the `Mode` enum in `src/dice-replacer.ts`:
 
 | Engine file | `bot_define_rules` | LLM behavior | `scenario.md` |
 |---|---|---|---|
-| `dice-replacer.js` | `true` (default) | LLM invents game rules dynamically (full DM mode) | can be left mostly empty |
-| `dice-replacer-strict.js` | `false` | LLM follows rules you have written explicitly | Must define all mechanics, thresholds, and formulas in detail |
+| `dice-replacer-dm-advanced.js`<br>`dice-replacer-dm-simple.js` | `true` | LLM invents game rules dynamically (full DM mode) | can be left mostly empty |
+| `dice-replacer-strict-advanced.js`<br>`dice-replacer-strict-simple.js` | `false` | LLM follows rules you have written explicitly | Must define all mechanics, thresholds, and formulas in detail |
+| `dice-replacer-vanilla.js` | `N/A` | Vanilla dice replacement only with no prepends. | N/A |
 
-### `dice-replacer-strict.js` First-Message Seeding
+### `dice-replacer-strict-*.js` First-Message Seeding
 
 For the strict engine, you must manually seed the top of `first_message.md` with the "Turn 0" acknowledgement statement. This ensures the bot understands the fresh-dice paradigm from the very first LLM response. Copy the `followRulesAdditionalPrepend` string from `src/dice-replacer.ts` and add a fully-summed `<PRE_COMPUTED_DATA>` example block (e.g. all 10s for `3d6`, all 12s for `4d5`) at the top of `first_message.md`.
 
 ### What to Put in Your Bot Files (Dice-Replacer)
 
-| File | `dice-replacer.js` (DM mode) | `dice-replacer-strict.js` (Strict Narrator) |
+| File | `dice-replacer-dm-*.js` (DM mode) | `dice-replacer-strict-*.js` (Strict Narrator) |
 |------|------------------------------|---------------------------------------------|
 | `personality.md` | Character traits, world-building, tracking format. Keep short. | Character traits, world constraints, and explicit game mechanics. Keep short; delegate math to `scenario.md`. |
 | `scenario.md` | Can be left blank or hold brief location flavour text. | **Required.** Deterministic rules, stat formulas, phased encounter loops, dice thresholds. Leave no room for LLM interpretation. |
 | `first_message.md` | Opening narration and initial state. | Opening narration, initial state, **plus** the Turn 0 seeding block (see above). |
+
+---
+
+## Advanced Usage: Combining Scripts
+
+While the three main script philosophies are typically used individually, advanced bot creators can chain `bundle.js` (the AST evaluator) and `dice-replacer-vanilla.js` (the raw dice parser) in the Bot update screen in the Script Edit view. Depending on the order you chain them, you dictate the execution priority:
+
+### Pattern A: `dice-replacer-vanilla.js` top -> `bundle.js` bottom
+
+In this pattern, the dice-replacer runs **first**. It scans the entire prompt and replaces any `<<xdy>>` placeholders with hard integers.
+
+*Afterward*, `bundle.js` executes. Because the dice have already been replaced, your AST JavaScript logic blocks can actually read those hard numbers from the code block, execute state logic on them internally, and determine the output. 
+
+**Example:**
+If you have a block `var d = <<3d6>>; if(d > 10){ console.log("Hit!"); }`, the dice-replacer evaluates it to `var d = 14; if(d > 10)...` and the AST parsed logic subsequently sees and executes `var d = 14`.
+
+### Pattern B: `bundle.js` top -> `dice-replacer-vanilla.js` bottom
+
+In this pattern, the AST evaluator runs **first**. It executes all game logic and evaluates all `if/else` conditions without any inherent dice math. However, the `console.log()` statements it prints can be formatted to output `<<xdy>>` tags.
+
+*Afterward*, the `dice-replacer` executes. It scans the LLM's final prompt—which now includes the raw `<<xdy>>` tags the AST evaluator just `console.log()`'d into the text—and rolls them right before sending the prompt to the AI.
+
+**Example:**
+Your JS code `if (state.hp < 10) console.log("Took <<3d6>> damage!");` prints raw tags. The dice-replacer then intercepts that and turns it into `Took 12 damage!` for the LLM to narrate.
+
+> **Important:** Only combine `dist/bundle.js` with `dist/dice-replacer-vanilla.js`. Do not combine `bundle.js` with the `dm` or `strict` engine variables, as their auto-prepends and system instructions will conflict entirely with the AST paradigm.
 
 ---
 
@@ -284,11 +312,11 @@ The agent will produce all three files, including JS logic blocks in `scenario.m
 
 ### Skill 2: `janitor-ai-dm-bot-development` — DM Free Mode and Strict Narrator Mode
 
-**Use when:** You want `dist/dice-replacer.js` or `dist/dice-replacer-strict.js`.
+**Use when:** You want `dist/dice-replacer-dm-*.js` or `dist/dice-replacer-strict-*.js`.
 
 The skill activates whenever you ask the agent to **create an unstructured Janitor AI DM or RPG game loop**. Within this skill, the agent chooses between the two engine variants based on whether you ask for **free, open-ended rules** or **strict, deterministic rules**—so your phrasing drives the engine selection.
 
-#### Free DM Mode (`dice-replacer.js`) — LLM invents rules on the fly
+#### Free DM Mode (`dice-replacer-dm-simple.js`) — LLM invents rules on the fly
 
 **Example prompts:**
 
@@ -307,9 +335,9 @@ Make a Janitor AI DM bot for a sci-fi RPG.
 I don't want to write any game rules—let the AI figure it out.
 ```
 
-The agent will create a minimal `personality.md` and `first_message.md` (and leave `scenario.md` mostly blank). The `dice-replacer.js` engine automatically injects the DM system instructions and fresh dice arrays at runtime—you do not need to add them.
+The agent will create a minimal `personality.md` and `first_message.md` (and leave `scenario.md` mostly blank). The `dice-replacer-dm-simple.js` engine automatically injects the DM system instructions and fresh dice arrays at runtime—you do not need to add them.
 
-#### Strict Narrator Mode (`dice-replacer-strict.js`) — LLM follows rules you define
+#### Strict Narrator Mode (`dice-replacer-strict-simple.js`) — LLM follows rules you define
 
 Including phrases like **"strict"**, **"deterministic rules"**, or **"follow rules explicitly"** tells the agent to use the strict engine variant and to write a fully-specified `scenario.md`.
 
@@ -384,8 +412,9 @@ npm install
 | Command | Output | Use for |
 |---------|--------|---------|
 | `npm run build` | `dist/bundle.js` | "LLM as Router, Script as Authority" — the full AST evaluator |
-| `npm run build:dice` | `dist/dice-replacer.js` | "LLM Free Reign / DM" — standalone dice-injection, DM invents rules |
-| `npm run build:dice` | `dist/dice-replacer-strict.js` | "LLM Free Reign / Strict Narrator" — standalone dice-injection, rules written by you |
+| `npm run build:dice` | `dist/dice-replacer-dm-advanced.js`<br>`dist/dice-replacer-dm-simple.js` | "LLM Free Reign / DM" — standalone dice-injection, DM invents rules |
+| `npm run build:dice` | `dist/dice-replacer-strict-advanced.js`<br>`dist/dice-replacer-strict-simple.js` | "LLM Free Reign / Strict Narrator" — standalone dice-injection, rules written by you |
+| `npm run build:dice` | `dist/dice-replacer-vanilla.js` | "Vanilla" — standalone dice-injection only, no rules injected |
 
 Paste the contents of the appropriate output file into the Advanced Script box in Janitor AI.
 

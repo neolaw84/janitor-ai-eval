@@ -47,14 +47,20 @@ if (remaining > 0) {
     console.log(`Success: No Object.defineProperty calls in ${path.basename(bundlePath)}`);
 }
 
-// Create both versions
-const sourceTrue = source.replace(/const bot_define_rules = (true|false);/g, 'const bot_define_rules = true;');
-const sourceFalse = source.replace(/const bot_define_rules = (true|false);/g, 'const bot_define_rules = false;');
+// Create versions based on Mode enum
+const modes = [
+    { value: 0, file: 'dice-replacer-vanilla.js' },
+    { value: 1, file: 'dice-replacer-strict-simple.js' },
+    { value: 2, file: 'dice-replacer-strict-advanced.js' },
+    { value: 3, file: 'dice-replacer-dm-simple.js' },
+    { value: 4, file: 'dice-replacer-dm-advanced.js' }
+];
 
-// Write dice-replacer.js (bot_define_rules = true)
-fs.writeFileSync(path.resolve(__dirname, 'dist', 'dice-replacer.js'), sourceTrue, 'utf8');
-console.log(`dice-replacer.js (bot_define_rules: true) created successfully.`);
-
-// Write dice-replacer-strict.js (bot_define_rules = false)
-fs.writeFileSync(path.resolve(__dirname, 'dist', 'dice-replacer-strict.js'), sourceFalse, 'utf8');
-console.log(`dice-replacer-strict.js (bot_define_rules: false) created successfully.`);
+modes.forEach(mode => {
+    const modeSource = source.replace(
+        /const compileMode = [0-9]+; \/\/ REPLACE_ME|const compileMode = Mode\.Vanilla as Mode; \/\/ REPLACE_ME/g, 
+        `const compileMode = ${mode.value};`
+    );
+    fs.writeFileSync(path.resolve(__dirname, 'dist', mode.file), modeSource, 'utf8');
+    console.log(`${mode.file} created successfully.`);
+});

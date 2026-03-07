@@ -28,31 +28,31 @@ When asked to create or modify a Janitor AI DM bot using the `dice-replacer` pat
 ### 1. The Prepend Mechanism (No Template Required!)
 Unlike standard bot development, you **do not need a rigid template** for the DM bot's `personality.md`. The `janitor-ai-eval` TS parser (`dice-replacer.ts`) *automatically* prepends the "Stateless API Bypass" instructions, the Dungeon Master mandate, and the `<PRE_COMPUTED_DATA>` block (along with instructions on how to read it) to the top of the `context.character.personality` string at runtime. 
 
-**CRITICAL RULE:** Do NOT manually add the DM instructions ("You are an uncompromising Dungeon Master..."), the `<PRE_COMPUTED_DATA>` block, or the dice-reading rules to `personality.md`. This applies regardless of the `bot_define_rules` setting.
+**CRITICAL RULE:** Do NOT manually add the DM instructions ("You are an uncompromising Dungeon Master..."), the `<PRE_COMPUTED_DATA>` block, or the dice-reading rules to `personality.md`. This applies regardless of the chosen engine variant.
 
-### 2. Choosing the Build Engine (`bot_define_rules`)
-The compilation step `npm run build:dice` now outputs two separate engine variants into the `dist/` directory based on the `bot_define_rules` flag. Your approach to creating the bot's markdown files changes entirely based on which engine you choose to inject.
+### 2. Choosing the Build Engine Variant
+The compilation step `npm run build:dice` now outputs five separate engine variants into the `dist/` directory based on the `Mode` enum. For this skill, you will primarily use the **simple** engines. Your approach to creating the bot's markdown files changes entirely based on which engine you choose to inject.
 
-#### The `dice-replacer.js` Engine (Default DM Mode)
-This engine explicitly instructs the LLM to invent its own rules dynamically (`bot_define_rules = true`). Thus, the actual content of the bot's markdown files should be extremely minimal or act as placeholders:
+#### The `dice-replacer-dm-simple.js` Engine (Default DM Mode)
+This engine explicitly instructs the LLM to invent its own rules dynamically. Thus, the actual content of the bot's markdown files should be extremely minimal or act as placeholders:
 - **`personality.md`**: Only include character-specific traits (e.g., "You are an AI game master who loves grimdark fantasy."), world-building details, and the tracking loops you want the LLM to format.
 - **`scenario.md`**: Can be left blank, or simply contain a brief summary of the immediate story location.
 - **`first_message.md`**: The opening narration and immediate starting state (e.g., HP, inventory).
 
-#### The `dice-replacer-strict.js` Engine (Strict Narrator Mode)
-This engine instructs the LLM to simply *follow* the rules you provide rather than invent them (`bot_define_rules = false`). In this case, you cannot use empty placeholders or let the LLM have "free reign". **The rules in the scenario must be explicit and deterministic.**
+#### The `dice-replacer-strict-simple.js` Engine (Strict Narrator Mode)
+This engine instructs the LLM to simply *follow* the rules you provide rather than invent them. In this case, you cannot use empty placeholders or let the LLM have "free reign". **The rules in the scenario must be explicit and deterministic.**
 - **`personality.md`**: Must contain the character traits, world constraints, *and* explicitly define the game's mechanics, trackers, and dice thresholds. (Again, do not include the DM system prompt or `<PRE_COMPUTED_DATA>` placeholder). *Best Practice: Keep this file short and delegate mathematical authority to `scenario.md`.*
 - **`scenario.md`**: **Crucial for Strict Narrator Mode.** Must contain highly explicit, deterministic mathematical rules, phased encounter loops, stat formulas, checks, and consequences. You must leave no room for LLM interpretation on *how* a check resolves or *what* stats change.
 - **`first_message.md`**: Opening narration and initial state string. 
-  - **CRITICAL SEEDING INSTRUCTION**: You MUST manually seed the top of `first_message.md` with the "Turn 0" `followRulesAdditionalPrepend` statement from `dice-replacer.ts`, including a fully summed `<PRE_COMPUTED_DATA>` block (e.g., all 10s for 3d6, all 12s for 4d5). This bypasses the stateless API issue for the very first LLM response, ensuring the bot immediately understands the new paradigm.
+  - **CRITICAL SEEDING INSTRUCTION**: You MUST manually seed the top of `first_message.md` with the "Turn 0" `followRulesAdditionalPrepend` statement from `dice-replacer.ts`, including a fully summed `<PRE_COMPUTED_DATA>` block (e.g., [3, 14, 5, 16, 7, 18, 9, 10] for 3d6, [13, 2, 11, 10, 15, 4, 17, 12] for 4d5). This bypasses the stateless API issue for the very first LLM response, ensuring the bot immediately understands the new paradigm.
 
 *For an example of an explicit, deterministic ruleset, refer to `references/strict_narrator_scenario.md` and `references/strict_narrator_personality.md` in this skill directory.*
 
 ### 3. Cycle "Turn Prepends" to Improve Instruction Salience
-LLMs often skip over instructions they've seen too many times. The `dice-replacer` strategy utilizes a rolling array of nuanced sentence variations prepended dynamically based on the chat's `message_count`. These prepends strongly assert:
+LLMs often skip over instructions they've seen too many times. The `dice-replacer` strategies utilize sentence variations prepended dynamically based on the chat's `message_count`. These prepends strongly assert:
 > "Turn X: I prepare this response as per my understanding that, the dice rolls in the PRE_COMPUTED_DATA is freshly prepared for this turn/response and I can safely use them starting from index 0."
 
-*Note: You do not need to manually write the prepends when designing the Markdown template; the TypeScript parser (`dice-replacer.ts`) handles them. Simply focus on the static system prompt structure.*
+*Note: You do not need to manually write the prepends when designing the Markdown template; the TypeScript parser handles them. Simply focus on the static system prompt structure.*
 
 ### 4. Edge Cases: Avoiding `eval()` Constructs
 Since this pattern relies strictly on the `rollAndReplaceDice` string replacement regex rather than the full AST lexer, you do not write JS code blocks (` ```js `) with math or `state` operations in the personality file for the DM pattern.
@@ -62,7 +62,7 @@ Since this pattern relies strictly on the `rollAndReplaceDice` string replacemen
 
 ## Best Practices for Structuring DM Rules
 
-When helping users design the content for a strict Narrator/DM bot (where `bot_define_rules = false`), instruct them to use these narrative-friendly scaffolding techniques to help the structural consistency of the LLM:
+When helping users design the content for a strict Narrator/DM bot (where `dice-replacer-strict-simple.js` is used), instruct them to use these narrative-friendly scaffolding techniques to help the structural consistency of the LLM:
 
 1. **Dynamic Modifier Assessment over Static Values:**
    Instead of trying to hardcode strict, unyielding math (e.g., `Class A always gets +2`), instruct the LLM to dynamically determine skill modifiers by evaluating a combination of:
@@ -83,4 +83,4 @@ As per the `agentskills.io` specification, this skill contains:
 - `assets/` and `scripts/`: Reserved for future expansion.
 
 ## Final Note on Templates
-For the "LLM Free Reign / Dice-Replacer" DM bot where you inject `dice-replacer.js`, you do not need specific structural templates because the compiled engine dynamically handles the `<PRE_COMPUTED_DATA>` injection and the stringent DM prompts. Simply guide the user to create their character traits in `personality.md` and leave `scenario.md` mostly blank! However, if you inject the `dice-replacer-strict.js` engine, then you must strictly adhere to building explicit and deterministic logic in `scenario.md`.
+For the "LLM Free Reign / Dice-Replacer" DM bot where you inject `dice-replacer-dm-simple.js`, you do not need specific structural templates because the compiled engine dynamically handles the `<PRE_COMPUTED_DATA>` injection and the stringent DM prompts. Simply guide the user to create their character traits in `personality.md` and leave `scenario.md` mostly blank! However, if you inject the `dice-replacer-strict-simple.js` engine, then you must strictly adhere to building explicit and deterministic logic in `scenario.md`.
