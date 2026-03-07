@@ -1,6 +1,6 @@
 /******/ "use strict";
 
-const compileMode = 4; // REPLACE_ME
+const compileMode = 4;
 const bot_define_rules = compileMode === 3 /* Mode.DMSimple */ || compileMode === 4 /* Mode.DMAdvanced */;
 const use_simplified_ack = compileMode === 1 /* Mode.StrictSimple */ || compileMode === 3 /* Mode.DMSimple */;
 const prepend_personality = compileMode !== 0 /* Mode.Vanilla */;
