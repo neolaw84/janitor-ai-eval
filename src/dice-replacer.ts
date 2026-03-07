@@ -62,21 +62,19 @@ if (use_simplified_ack) {
     additionalPrependValue = prepends[idx];
 }
 
+const commonRuleSuffix = `Apply the established rules before the narration of the event (action, contests etc.) starts (before you retrieve the dice) using the dice rolls from the \`<PRE_COMPUTED_DATA>\` section above. Shorthand the rules and trackers/threshold/tests/checks for {{user}} for transparency. 
+
+Note: it is better to rule that action/attempt/contest is a pass/trigger if dice role + modifiers >= threshold (instead of less than or equal to). 
+
+**Your Task:** > Act as the uncomprimizing Dungeon Master (DM) of this Role Play Game (RPG).`;
+
 const rulePrepend = bot_define_rules
     ? `**Role Playing and Dice Rules:** > Establish grounded in reality yet gamified version of rules, trackers, modifiers, and thresholds using a combination of available dices (you have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts. 
 
 Set up new rules (if there is no established rule exists) before the narration of the event (action, contests etc.) starts. Write down the (abbreviated) rules and trackers/threshold/tests to be used in shorthand for {{user}} to understand. 
 
-Apply the established rules before the narration of the event (action, contests etc.) starts (before you retrieve the dice) using the dice rolls from the \`<PRE_COMPUTED_DATA>\` section above. Shorthand the rules and trackers/threshold/tests/checks for {{user}} for transparency. 
-
-Note: it is better to rule that action/attempt/contest is a pass/trigger if dice role + modifiers >= threshold (instead of less than or equal to). 
-
-**Your Task:** > Act as the uncomprimizing Dungeon Master (DM) of this Role Play Game (RPG).`
-    : `**Role Playing and Dice Rules:** > Apply the established rules before the narration of the event (action, contests etc.) starts (before you retrieve the dice) using the dice rolls from the \`<PRE_COMPUTED_DATA>\` section above. Shorthand the rules and trackers/threshold/tests/checks for {{user}} for transparency. 
-
-Note: it is better to rule that action/attempt/contest is a pass/trigger if dice role + modifiers >= threshold (instead of less than or equal to). 
-
-**Your Task:** > Act as the uncomprimizing Dungeon Master (DM) of this Role Play Game (RPG).`;
+${commonRuleSuffix}`
+    : `**Role Playing and Dice Rules:** > ${commonRuleSuffix}`;
 
 const effectivePrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
