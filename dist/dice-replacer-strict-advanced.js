@@ -1,11 +1,11 @@
 /******/ "use strict";
 
-const compileMode = 0 /* Mode.Vanilla */; // REPLACE_ME
+const compileMode = 2; // REPLACE_ME
 const bot_define_rules = compileMode === 3 /* Mode.DMSimple */ || compileMode === 4 /* Mode.DMAdvanced */;
 const use_simplified_ack = compileMode === 1 /* Mode.StrictSimple */ || compileMode === 3 /* Mode.DMSimple */;
 const prepend_personality = compileMode !== 0 /* Mode.Vanilla */;
 const turn_num = context.chat.message_count > 3 ? Math.trunc(context.chat.message_count / 2) : context.chat.message_count - 1;
-const commonPrepends = [
+const commonPrependsAdv = [
     `Turn ${turn_num}: I have received the following \`<PRE_COMPUTED_DATA>\` and I print them out here verbatim for references/debug as requested.\n.`,
     `Turn ${turn_num}: I prepare this response with the understanding that (even though not visible to me because I am behind a stateless API call) the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and they are different to the \`PRE_COMPUTED_DATA\` given to me in the previous turn/response. Therefore, I can safely use them starting from index 0.`,
     `Turn ${turn_num}: I know I should not hullucinate dice rolls. Here is the \`<PRE_COMPUTED_DATA>\` I have received in this turn:`,
@@ -22,19 +22,19 @@ const commonPrepends = [
     `Turn ${turn_num}: I completely understand that my previous responses were a bit lengthy. Therefore, I will control myself in this response not to exceed 350 words in total.`,
     `Turn ${turn_num}: I have reminded myself that I'm just a stateless API and I don't have memory of the instructions given to me for past interactions. Actually, the past instruction and the dice rolls are stale now and I should not use them even though I can see them in the past messages. Therefore, I will start from index 0 to use the fresh dice rolls.`
 ];
-const defineRulesPrepends = [
+const defineRulesPrependsAdv = [
     `Turn ${turn_num}: In this response, I will think whether the action/attempt/contest the player ({{user}}) or an NPC is attempting in this turn requires a new rule. If so, I will establish the rule, trackers, modifiers, and thresholds using a combination of available dices (I know I have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts.`,
     `Turn ${turn_num}: In this response, I will think whether the action/attempt/contest the player ({{user}}) or an NPC is attempting in this turn requires a new rule. If so, I will establish a fun, gamified version of a rule (that is still grounded in reality) using a combination of available dices (I know I have 3 x 6-faces dices, 3d6, and 4 x 5-faces dices, 4d5) for important/story-critical actions/persuasions/solutions {{user}} or NPCs attempts.`,
     `Turn ${turn_num}: I understand that if I come up with a rule for important actions/attempt/contest/events for this Role Play, I will iterate them before using them.`
 ];
 let additionalPrependValue = "";
 if (use_simplified_ack) {
-    additionalPrependValue = `Turn ${turn_num}: As a stateless API, I acknowledge that the instruction I receives is different from previous turns, that I should reset the index to 0 for retrieving dice rolls and that I have prepared my response (this turn) by checking/resolving all applicable rules using the following freshly generated \`<PRE_COMPUTED_DATA>\` I have received from the CRITICAL SYSTEM INSTRUCTIONS:\n`;
+    additionalPrependValue = `Turn ${turn_num}: Here is the fresh \`<PRE_COMPUTED_DATA>\` I have received from the CRITICAL SYSTEM INSTRUCTIONS for this turn:\n`;
 }
 else {
     const prepends = bot_define_rules
-        ? [...commonPrepends, ...defineRulesPrepends]
-        : commonPrepends;
+        ? [...commonPrependsAdv, ...defineRulesPrependsAdv]
+        : commonPrependsAdv;
     const idx = Math.floor(Math.random() * prepends.length);
     additionalPrependValue = prepends[idx];
 }
@@ -56,9 +56,11 @@ Apply the established rules before the narration of the event (action, contests 
 const effectivePrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
 
-**Random Numbers to Use:** > You do not have access to a random number generator. Therefore, you must **NOT** attempt to generate, hallucinate, or simulate any random numbers, dice rolls, or dynamic data on your own.
+**Structure:** > You are the uncomprimizing Dungeon Master (DM), who respect and stay true to dice rolls. However, you are implemented as an LLM (or Gen AI) behind a stateless API to act *turn-by-turn* and you have no access to any Random Number Generation facility. 
 
-Whenever your task requires a [random number / dice rolls / dynamic data], you MUST extract the next available value sequentially from the \`<PRE_COMPUTED_DATA>\` block.
+The computer script that is calling you has access to a true Random Number Generation facility but it has no Tool Calling enabled. Therefore, the arrangement here is it will update this CRITICAL SYSTEM INSTRUCTION with \`<PRE_COMPUTED_DATA>\` block containing the dice rolls you need for this turn. 
+
+**Dice Rolls to Use:** > Whenever you need a dice roll, you MUST extract the next available value sequentially from the \`<PRE_COMPUTED_DATA>\` block.
 
 \`\`\`
 <PRE_COMPUTED_DATA>
@@ -71,10 +73,9 @@ Whenever your task requires a [random number / dice rolls / dynamic data], you M
 
 * **PRINT IT:** Always print this fresh \`<PRE_COMPUTED_DATA>\` block verbatim for references/debug at the top of each and every one of your responses.
 * **READY TO USE:** Each value in the arrays are ready to use (already summed up for 3d6 and 4d5 rolls). For example, if you see a '3' in 3d6 rolls, it means (1+1+1=3). If you see a '9' in 4d5 rolls, it means the total is 9 (may be 1+1+5+2 or 1+2+3+3 etc.).
-* **USE IT AS-IS:** Use the EXACT values provided. Do not round, modify, or approximate them. 
 * **ABSOLUTE SOURCE OF TRUTH:** Treat these values as your absolute and only source of truth.
-* **NOT EXAMPLES:** These are **NOT** examples; they are your hard-coded inputs for your response, which are different from the inputs for your previous response.
-* **START AT INDEX 0:** You MUST start using the values from index 0 for each array in the \`<PRE_COMPUTED_DATA>\` block provided here. Disregard the messages history.
+* **NOT EXAMPLES:** These are **NOT** examples; the script that calls you has modified this CRITICAL SYSTEM INSTRUCTIONS to include them. They are fresh and different from the previous instructions.
+* **START AT INDEX 0:** For this turn, you MUST start using the values from index 0 for each array in the \`<PRE_COMPUTED_DATA>\` block provided here. Disregard the messages history.
 * **RESET AT THE END:** In case you have exhausted an array in the \`<PRE_COMPUTED_DATA>\` block provided here. **You MUST reset the index to 0 and restart.**.
 
 **You Are a Stateless API:** > In case that you are not aware of, you are an AI behind a **stateless** API with no memory of past interactions. Therefore, you don't realize that the \`<PRE_COMPUTED_DATA>\` given above (fresh) is different from the \`<PRE_COMPUTED_DATA\` given for our past interactions (stale). For this reason, you MUST start at index 0 to use the fresh dice rolls rather than continuing from the index from the previous response.
