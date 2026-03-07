@@ -105,11 +105,10 @@ The computer script that is calling you has access to a true Random Number Gener
 
 ${rulePrepend}
 
-**[END OF CRITICAL SYSTEM INSTRUCTION]**
+**How to Start Your Response:** > Start your response with the following text (before you proceed with the narration):
+${additionalPrependValue}
 
-
-Start your response with the following text (before you proceed with the narration):
-${additionalPrependValue}`;
+**[END OF CRITICAL SYSTEM INSTRUCTION]**`;
 
 /**
  * Parses a string for <<xdy>> dice notation, rolls the dice, 
