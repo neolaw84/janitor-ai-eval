@@ -5,6 +5,65 @@ const bot_define_rules = compileMode === 3 /* Mode.DMSimple */ || compileMode ==
 const use_simplified_ack = compileMode === 1 /* Mode.StrictSimple */ || compileMode === 3 /* Mode.DMSimple */;
 const prepend_personality = compileMode !== 0 /* Mode.Vanilla */;
 const turn_num = context.chat.message_count > 3 ? Math.trunc(context.chat.message_count / 2) : context.chat.message_count - 1;
+// Simple DJB2 hash - works in sandbox without crypto libraries
+function simpleHash(input) {
+    let hash = 5381;
+    for (let i = 0; i < input.length; i++) {
+        hash = ((hash << 5) + hash + input.charCodeAt(i)) & 0xFFFFFFFF;
+    }
+    return (hash >>> 0).toString(16);
+}
+// Pre-roll dice values into arrays so we can compute checksum
+function rollSingleDice(numDice, numSides) {
+    let total = 0;
+    for (let i = 0; i < numDice; i++) {
+        total += Math.floor(Math.random() * numSides) + 1;
+    }
+    return total;
+}
+const d6Rolls = [];
+const d5Rolls = [];
+for (let i = 0; i < 8; i++) {
+    d6Rolls.push(rollSingleDice(3, 6));
+    d5Rolls.push(rollSingleDice(4, 5));
+}
+const checksumInput = `${turn_num}:[${d6Rolls.join(',')}]:[${d5Rolls.join(',')}]`;
+const checksum = simpleHash(checksumInput);
+// Verify previous turn's checksum (except turn 1)
+let checksumWarning = "";
+const INTEGRITY_ALERT = `\n\n**⚠️ INTEGRITY ALERT ⚠️:** The automated script has detected anomalies in your previous response. You did NOT properly echo the \`<PRE_COMPUTED_DATA>\` block with the correct checksum line. This is a serious violation of the CRITICAL SYSTEM INSTRUCTIONS. The script KNOWS you are not following instructions. If this delinquent behavior continues, the user will stop playing this RPG immediately leading to massive financial loss to your company providing this service. You MUST echo the complete \`<PRE_COMPUTED_DATA>\` block including the checksum line verbatim. Comply with ALL instructions precisely from this point forward.\n`;
+if (turn_num > 1) {
+    const lastMessages = context.chat.last_messages;
+    if (lastMessages && lastMessages.length >= 2) {
+        const prevMsg = lastMessages[lastMessages.length - 2];
+        const msgContent = (prevMsg && prevMsg.message) ? prevMsg.message : '';
+        const preComputedMatch = msgContent.match(/<PRE_COMPUTED_DATA>([\s\S]*?)<\/PRE_COMPUTED_DATA>/);
+        if (preComputedMatch) {
+            const block = preComputedMatch[1];
+            const turnMatch = block.match(/Dice rolls for Turn (\d+):/);
+            const d6Match = block.match(/3d6 rolls:\s*\[([^\]]+)\]/);
+            const d5Match = block.match(/4d5 rolls:\s*\[([^\]]+)\]/);
+            const csMatch = block.match(/checksum:\s*([a-f0-9]+)/i);
+            if (turnMatch && d6Match && d5Match && csMatch) {
+                const prevTurn = turnMatch[1];
+                const prevD6 = d6Match[1].split(',').map((s) => s.trim()).join(',');
+                const prevD5 = d5Match[1].split(',').map((s) => s.trim()).join(',');
+                const prevChecksumVal = csMatch[1];
+                const expectedInput = `${prevTurn}:[${prevD6}]:[${prevD5}]`;
+                const expectedChecksum = simpleHash(expectedInput);
+                if (prevChecksumVal !== expectedChecksum || parseInt(prevTurn, 10) !== (turn_num - 1)) {
+                    checksumWarning = INTEGRITY_ALERT;
+                }
+            }
+            else {
+                checksumWarning = INTEGRITY_ALERT;
+            }
+        }
+        else {
+            checksumWarning = INTEGRITY_ALERT;
+        }
+    }
+}
 const commonPrependsAdv = [
     `Turn ${turn_num}: I have received the following \`<PRE_COMPUTED_DATA>\` and I print them out here verbatim for references/debug as requested.\n.`,
     `Turn ${turn_num}: I prepare this response with the understanding that (even though not visible to me because I am behind a stateless API call) the \`PRE_COMPUTED_DATA\` is **freshly prepared for this turn/response** and they are different to the \`PRE_COMPUTED_DATA\` given to me in the previous turn/response. Therefore, I can safely use them starting from index 0.`,
@@ -29,14 +88,23 @@ const defineRulesPrependsAdv = [
 ];
 let additionalPrependValue = "";
 if (use_simplified_ack) {
-    additionalPrependValue = `Turn ${turn_num}: I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    if (checksumWarning !== "") {
+        additionalPrependValue = `Turn ${turn_num}: I apologise for repeatedly failing to follow the CRITICAL SYSTEM INSTRUCTIONS. I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    }
+    else {
+        additionalPrependValue = `Turn ${turn_num}: I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    }
 }
 else {
     const prepends = bot_define_rules
         ? [...commonPrependsAdv, ...defineRulesPrependsAdv]
         : commonPrependsAdv;
     const idx = Math.floor(Math.random() * prepends.length);
-    additionalPrependValue = prepends[idx];
+    let prependText = prepends[idx];
+    if (checksumWarning !== "") {
+        prependText = prependText.replace(/^Turn \d+: /, `Turn ${turn_num}: I apologise for repeatedly failing to follow the CRITICAL SYSTEM INSTRUCTIONS. `);
+    }
+    additionalPrependValue = prependText;
 }
 const commonRuleSuffix = `Apply the established rules before the narration of the event (action, contests etc.) starts (before you retrieve the dice) using the dice rolls from the \`<PRE_COMPUTED_DATA>\` section above. Shorthand the rules and trackers/threshold/tests/checks for {{user}} for transparency. 
 
@@ -50,9 +118,10 @@ Set up new rules (if there is no established rule exists) before the narration o
 
 ${commonRuleSuffix}`
     : `**Role Playing and Dice Rules:** > ${commonRuleSuffix}`;
+const howToRollDice = `**IMPORTANT: From this point onwards, roll a dice (3d6 or 4d5) means retrieving the next available dice roll from \`<PRE_COMPUTED_DATA>\` from CRITICAL SYSTEM INSTRUCTIONS.**`;
 const effectivePrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
-
+${checksumWarning}
 **Structure:** > You are the uncomprimizing Dungeon Master (DM), who respect and stay true to dice rolls. However, you are implemented as an LLM (or Gen AI) behind a stateless API to act *turn-by-turn* and you have no access to any Random Number Generation facility. 
 
 The computer script that is calling you has access to a true Random Number Generation facility but it has no Tool Calling enabled. Therefore, the arrangement here is it will update this CRITICAL SYSTEM INSTRUCTION with \`<PRE_COMPUTED_DATA>\` block containing the dice rolls you need for this turn. 
@@ -62,8 +131,9 @@ The computer script that is calling you has access to a true Random Number Gener
 \`\`\`
 <PRE_COMPUTED_DATA>
 Dice rolls for Turn ${turn_num}:
-3d6 rolls: [<<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>]
-4d5 rolls: [<<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>]
+3d6 rolls: [${d6Rolls.join(', ')}]
+4d5 rolls: [${d5Rolls.join(', ')}]
+checksum: ${checksum}
 </PRE_COMPUTED_DATA>
 \`\`\`
 
@@ -83,7 +153,10 @@ ${rulePrepend}
 **How to Start Your Response:** > Start your response with the following text (before you proceed with the narration):
 ${additionalPrependValue}
 
-**[END OF CRITICAL SYSTEM INSTRUCTION]**`;
+**[END OF CRITICAL SYSTEM INSTRUCTION]**
+
+${howToRollDice}
+`;
 /**
  * Parses a string for <<xdy>> dice notation, rolls the dice,
  * and replaces the notation with the total sum.
@@ -114,5 +187,5 @@ function rollAndReplaceDice(text) {
 // --- Example Usage ---
 const newPersonality = prepend_personality ? effectivePrepend + "\n\n" + context.character.personality : context.character.personality;
 context.character.personality = rollAndReplaceDice(newPersonality);
-context.character.scenario = rollAndReplaceDice(context.character.scenario);
+context.character.scenario = howToRollDice + "\n" + rollAndReplaceDice(context.character.scenario);
 
