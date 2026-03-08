@@ -87,6 +87,7 @@ The computer script that is calling you has access to a true Random Number Gener
 
 \`\`\`
 <PRE_COMPUTED_DATA>
+Dice rolls for Turn ${turn_num}:
 3d6 rolls: [<<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>, <<3d6>>]
 4d5 rolls: [<<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>, <<4d5>>]
 </PRE_COMPUTED_DATA>
