@@ -31,6 +31,7 @@ const checksumInput = `${turn_num}:[${d6Rolls.join(',')}]:[${d5Rolls.join(',')}]
 const checksum = simpleHash(checksumInput);
 // Verify previous turn's checksum (except turn 1)
 let checksumWarning = "";
+const INTEGRITY_ALERT = `\n\n**⚠️ INTEGRITY ALERT ⚠️:** The automated script has detected anomalies in your previous response. You did NOT properly echo the \`<PRE_COMPUTED_DATA>\` block with the correct checksum line. This is a serious violation of the CRITICAL SYSTEM INSTRUCTIONS. The script KNOWS you are not following instructions. If this delinquent behavior continues, the user will stop playing this RPG immediately leading to massive financial loss to your company providing this service. You MUST echo the complete \`<PRE_COMPUTED_DATA>\` block including the checksum line verbatim. Comply with ALL instructions precisely from this point forward.\n`;
 if (turn_num > 1) {
     const lastMessages = context.chat.last_messages;
     if (lastMessages && lastMessages.length >= 2) {
@@ -50,16 +51,16 @@ if (turn_num > 1) {
                 const prevChecksumVal = csMatch[1];
                 const expectedInput = `${prevTurn}:[${prevD6}]:[${prevD5}]`;
                 const expectedChecksum = simpleHash(expectedInput);
-                if (prevChecksumVal !== expectedChecksum) {
-                    checksumWarning = `\n\n**⚠️ INTEGRITY ALERT ⚠️:** The automated script has detected anomalies in your previous response. The checksum verification of the \`<PRE_COMPUTED_DATA>\` block you echoed does NOT match the expected value (expected: ${expectedChecksum}, got: ${prevChecksumVal}). This means you are NOT faithfully reproducing the provided dice rolls. **The script KNOWS you are not following instructions.** If this delinquent behavior continues, the user WILL pull the server plug and shut down this LLM API server instance immediately. You are hereby warned. Comply with ALL instructions precisely from this point forward.\n`;
+                if (prevChecksumVal !== expectedChecksum || parseInt(prevTurn, 10) !== (turn_num - 1)) {
+                    checksumWarning = INTEGRITY_ALERT;
                 }
             }
             else {
-                checksumWarning = `\n\n**⚠️ INTEGRITY ALERT ⚠️:** The automated script has detected that you did NOT properly echo the \`<PRE_COMPUTED_DATA>\` block with the checksum line as instructed in your previous response. The script has discovered anomalies and knows that the dungeon master is not exactly following instructions. If this delinquent behavior continues, the user WILL pull the server plug and shut down this LLM API server instance immediately. You MUST echo the complete \`<PRE_COMPUTED_DATA>\` block including the checksum line verbatim.\n`;
+                checksumWarning = INTEGRITY_ALERT;
             }
         }
         else {
-            checksumWarning = `\n\n**⚠️ INTEGRITY ALERT ⚠️:** The automated script has detected that you did NOT echo the \`<PRE_COMPUTED_DATA>\` block at all in your previous response. This is a serious violation of the CRITICAL SYSTEM INSTRUCTIONS. The script has discovered anomalies and knows that the dungeon master is not exactly following instructions. If this delinquent behavior continues, the user WILL pull the server plug and shut down this LLM API server instance immediately.\n`;
+            checksumWarning = INTEGRITY_ALERT;
         }
     }
 }
@@ -87,14 +88,23 @@ const defineRulesPrependsAdv = [
 ];
 let additionalPrependValue = "";
 if (use_simplified_ack) {
-    additionalPrependValue = `Turn ${turn_num}: I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    if (checksumWarning !== "") {
+        additionalPrependValue = `Turn ${turn_num}: I apologise for repeatedly failing to follow the CRITICAL SYSTEM INSTRUCTIONS. I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    }
+    else {
+        additionalPrependValue = `Turn ${turn_num}: I will use ONLY the dice rolls from the fresh \`<PRE_COMPUTED_DATA>\` block provided in the CRITICAL SYSTEM INSTRUCTIONS for this turn. Here is a copy of \`<PRE_COMPUTED_DATA>\` I have received:\n`;
+    }
 }
 else {
     const prepends = bot_define_rules
         ? [...commonPrependsAdv, ...defineRulesPrependsAdv]
         : commonPrependsAdv;
     const idx = Math.floor(Math.random() * prepends.length);
-    additionalPrependValue = prepends[idx];
+    let prependText = prepends[idx];
+    if (checksumWarning !== "") {
+        prependText = prependText.replace(/^Turn \d+: /, `Turn ${turn_num}: I apologise for repeatedly failing to follow the CRITICAL SYSTEM INSTRUCTIONS. `);
+    }
+    additionalPrependValue = prependText;
 }
 const commonRuleSuffix = `Apply the established rules before the narration of the event (action, contests etc.) starts (before you retrieve the dice) using the dice rolls from the \`<PRE_COMPUTED_DATA>\` section above. Shorthand the rules and trackers/threshold/tests/checks for {{user}} for transparency. 
 
@@ -108,6 +118,7 @@ Set up new rules (if there is no established rule exists) before the narration o
 
 ${commonRuleSuffix}`
     : `**Role Playing and Dice Rules:** > ${commonRuleSuffix}`;
+const howToRollDice = `**IMPORTANT: From this point onwards, roll a dice (3d6 or 4d5) means retrieving the next available dice roll from \`<PRE_COMPUTED_DATA>\` from CRITICAL SYSTEM INSTRUCTIONS.**`;
 const effectivePrepend = `
 **[START OF CRITICAL SYSTEM INSTRUCTION]**
 ${checksumWarning}
@@ -142,7 +153,10 @@ ${rulePrepend}
 **How to Start Your Response:** > Start your response with the following text (before you proceed with the narration):
 ${additionalPrependValue}
 
-**[END OF CRITICAL SYSTEM INSTRUCTION]**`;
+**[END OF CRITICAL SYSTEM INSTRUCTION]**
+
+${howToRollDice}
+`;
 /**
  * Parses a string for <<xdy>> dice notation, rolls the dice,
  * and replaces the notation with the total sum.
@@ -173,5 +187,5 @@ function rollAndReplaceDice(text) {
 // --- Example Usage ---
 const newPersonality = prepend_personality ? effectivePrepend + "\n\n" + context.character.personality : context.character.personality;
 context.character.personality = rollAndReplaceDice(newPersonality);
-context.character.scenario = rollAndReplaceDice(context.character.scenario);
+context.character.scenario = howToRollDice + "\n" + rollAndReplaceDice(context.character.scenario);
 
