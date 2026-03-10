@@ -2,7 +2,7 @@
 
 A standalone, dependency-free JavaScript sandbox for the [Janitor AI](https://janitorai.com) scripting environment. It lets you embed simple JavaScript blocks inside your bot's Personality and Scenario prompts to drive deterministic game logic—health tracking, dice rolls, branching consequences—without relying on the LLM to do the math.
 
-> **Don't know how to code or dread writing long prompts?** You have two options:
+> **Don't know how to code or dread writing long prompts?** Fret not, we have prepared everything for you:
 > 1. **Just copy a compiled script.** The pre-compiled files are already included in this repository. Copy the contents of whichever script matches your chosen pattern (see [Choosing Your Script](#choosing-your-script)) and paste it into your bot's Advanced Script box on Janitor AI.
 > 2. **Use an agentic IDE.** Tools like Antigravity *(no association with this repository)* can read the agent skills bundled in this repo and write all your bot files from a single conversational prompt. See [No-Code Bot Creation with an Agentic IDE](#no-code-bot-creation-with-an-agentic-ide).
 
