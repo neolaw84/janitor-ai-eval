@@ -2,11 +2,12 @@
     "name": "janitor-ai-eval",
     "version": "0.1.0-beta",
     "description": "Standalone custom AST javascript evaluator and snippet for the Janitor AI environment",
-    "main": "dist/bundle.js",
+    "main": "dist/markdown-evaluator.js",
     "scripts": {
         "clean": "rm -rf dist",
         "build": "webpack --config webpack.config.js && node patch-bundle.js",
         "build:dice": "webpack --config webpack-dice-replacer.config.js && node patch-dice-replacer.js",
+        "build:memory": "webpack --config webpack-memory.config.js && node patch-memory.js",
         "test": "jest"
     },
     "devDependencies": {

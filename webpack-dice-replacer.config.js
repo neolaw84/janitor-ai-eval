@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
     mode: 'none',
     target: ['web', 'es2015'],
-    entry: './src/dice-replacer.ts',
+    entry: './src/dice-replacer-entry.ts',
     output: {
         filename: 'dice-replacer.js',
         path: path.resolve(__dirname, 'dist'),

@@ -17,7 +17,7 @@ Developing any Janitor AI bot requires three primary markdown files. Even though
 Unlike the rigid mathematically evaluated state of the main `janitor-ai-eval` pattern, this `dice-replacer` philosophy injects raw dice rolls into the character prompt *before* the Janitor AI platform assembles the call to the LLM.
 
 1.  **The Pre-computation Phase**: A script intercepts the `context.character.personality` and evaluates variables like `<<3d6>>` inside the text.
-2.  **The `<PRE_COMPUTED_DATA>` Block**: The script dynamically injects arrays of rolled dice into a designated block. **IMPORTANT:** The `dice-replacer` system specifically provides two types of dice arrays: `3d6` (typically for Player rolls) and `4d5` (typically for NPC rolls). No other dice types are currently supported in the pre-computed block.
+2.  **The `<PRE_COMPUTED_DATA>` Block**: The script dynamically injects arrays of rolled dice into a designated block. **IMPORTANT:** By default, the `dice-replacer-entry.ts` script provides two types of dice arrays: `3d6` (typically for Player rolls) and `4d5` (typically for NPC rolls). **However, this is fully configurable by the Bot Developer.** The developer can edit the `configuredDice` array at the top of the TS entry file to inject `1d20`, `2d10`, or any customized dice arrays before running `npm run build:dice`. The injection script will automatically calculate checksums and update the DM System Instructions to match the new dice logic.
 3.  **The LLM as DM**: The LLM is instructed via the Personality prompt to act as an uncompromising Dungeon Master. It is told to retrieve the next sequential dice roll from `<PRE_COMPUTED_DATA>` rather than hallucinatory values.
 4.  **Circumventing Statelessness**: The LLM API is stateless and doesn’t inherently grasp that the pre-computed arrays are generated *fresh* for the new response. We specifically prompt the LLM to understand that the array it is reading is new and it MUST begin extracting values starting from `index 0`.
 
@@ -26,7 +26,7 @@ Unlike the rigid mathematically evaluated state of the main `janitor-ai-eval` pa
 When asked to create or modify a Janitor AI DM bot using the `dice-replacer` pattern:
 
 ### 1. The Prepend Mechanism (No Template Required!)
-Unlike standard bot development, you **do not need a rigid template** for the DM bot's `personality.md`. The `janitor-ai-eval` TS parser (`dice-replacer.ts`) *automatically* prepends the "Stateless API Bypass" instructions, the Dungeon Master mandate, and the `<PRE_COMPUTED_DATA>` block (along with instructions on how to read it) to the top of the `context.character.personality` string at runtime. 
+Unlike standard bot development, you **do not need a rigid template** for the DM bot's `personality.md`. The `janitor-ai-eval` TS parser (`dice-replacer-entry.ts`) *automatically* prepends the "Stateless API Bypass" instructions, the Dungeon Master mandate, and the `<PRE_COMPUTED_DATA>` block (along with instructions on how to read it) to the top of the `context.character.personality` string at runtime. 
 
 **CRITICAL RULE:** Do NOT manually add the DM instructions ("You are an uncompromising Dungeon Master..."), the `<PRE_COMPUTED_DATA>` block, or the dice-reading rules to `personality.md`. This applies regardless of the chosen engine variant.
 
@@ -44,7 +44,7 @@ This engine instructs the LLM to simply *follow* the rules you provide rather th
 - **`personality.md`**: Must contain the character traits, world constraints, *and* explicitly define the game's mechanics, trackers, and dice thresholds. (Again, do not include the DM system prompt or `<PRE_COMPUTED_DATA>` placeholder). *Best Practice: Keep this file short and delegate mathematical authority to `scenario.md`.*
 - **`scenario.md`**: **Crucial for Strict Narrator Mode.** Must contain highly explicit, deterministic mathematical rules, phased encounter loops, stat formulas, checks, and consequences. You must leave no room for LLM interpretation on *how* a check resolves or *what* stats change.
 - **`first_message.md`**: Opening narration and initial state string. 
-  - **CRITICAL SEEDING INSTRUCTION**: You MUST manually seed the top of `first_message.md` with the "Turn 0" `followRulesAdditionalPrepend` statement from `dice-replacer.ts`, including a fully summed `<PRE_COMPUTED_DATA>` block (e.g., [3, 14, 5, 16, 7, 18, 9, 10] for 3d6, [13, 2, 11, 10, 15, 4, 17, 12] for 4d5). This bypasses the stateless API issue for the very first LLM response, ensuring the bot immediately understands the new paradigm.
+  - **CRITICAL SEEDING INSTRUCTION**: You MUST manually seed the top of `first_message.md` with the "Turn 0" `followRulesAdditionalPrepend` statement from `dice-replacer-entry.ts`, including a fully summed `<PRE_COMPUTED_DATA>` block matching the configured dice types (e.g., [3, 14, 5, 16, 7, 18, 9, 10] for 3d6, [13, 2, 11, 10, 15, 4, 17, 12] for 4d5). This bypasses the stateless API issue for the very first LLM response, ensuring the bot immediately understands the new paradigm.
 
 *For an example of an explicit, deterministic ruleset, refer to `references/strict_narrator_scenario.md` and `references/strict_narrator_personality.md` in this skill directory.*
 
@@ -84,3 +84,6 @@ As per the `agentskills.io` specification, this skill contains:
 
 ## Final Note on Templates
 For the "LLM Free Reign / Dice-Replacer" DM bot where you inject `dice-replacer-dm-simple.js`, you do not need specific structural templates because the compiled engine dynamically handles the `<PRE_COMPUTED_DATA>` injection and the stringent DM prompts. Simply guide the user to create their character traits in `personality.md` and leave `scenario.md` mostly blank! However, if you inject the `dice-replacer-strict-simple.js` engine, then you must strictly adhere to building explicit and deterministic logic in `scenario.md`.
+
+## Advanced Features: Memory Manager
+If the user requests advanced long-term memory logic or periodic summarization, suggest adding the `memory-manager.js` block. Do not attempt to summarize its operation or usage yourself; instruct advanced users to read the `README.md` and `FAQ.md` for exact integration guidance.

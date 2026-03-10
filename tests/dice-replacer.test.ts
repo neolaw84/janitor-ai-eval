@@ -16,7 +16,18 @@ function simpleHash(input: string): string {
     return (hash >>> 0).toString(16);
 }
 
-// Replicate the PRE_COMPUTED_DATA extraction logic from dice-replacer.ts
+interface DiceConfig {
+    count: number;
+    sides: number;
+    amountToRoll: number;
+}
+
+const configuredDice: DiceConfig[] = [
+    { count: 3, sides: 6, amountToRoll: 8 },
+    { count: 4, sides: 5, amountToRoll: 8 }
+];
+
+// Replicate the PRE_COMPUTED_DATA extraction logic from dice-replacer-entry.ts
 function extractAndVerifyChecksum(msgContent: string): { valid: boolean; reason: string } {
     const preComputedMatch = msgContent.match(/<PRE_COMPUTED_DATA>([\s\S]*?)<\/PRE_COMPUTED_DATA>/);
     if (!preComputedMatch) {
@@ -25,20 +36,31 @@ function extractAndVerifyChecksum(msgContent: string): { valid: boolean; reason:
 
     const block = preComputedMatch[1];
     const turnMatch = block.match(/Dice rolls for Turn (\d+):/);
-    const d6Match = block.match(/3d6 rolls:\s*\[([^\]]+)\]/);
-    const d5Match = block.match(/4d5 rolls:\s*\[([^\]]+)\]/);
+    
+    const extractedTotals: string[] = [];
+    let allMatched = true;
+    for (const config of configuredDice) {
+        const regex = new RegExp(`${config.count}d${config.sides} rolls:\\s*\\[([^\\]]+)\\]`);
+        const match = block.match(regex);
+        if (match) {
+            extractedTotals.push(match[1].split(',').map((s: string) => s.trim()).join(','));
+        } else {
+            allMatched = false;
+            break;
+        }
+    }
+
     const csMatch = block.match(/checksum:\s*([a-f0-9]+)/i);
 
-    if (!turnMatch || !d6Match || !d5Match || !csMatch) {
+    if (!turnMatch || !allMatched || !csMatch) {
         return { valid: false, reason: 'incomplete_block' };
     }
 
     const prevTurn = turnMatch[1];
-    const prevD6 = d6Match[1].split(',').map((s: string) => s.trim()).join(',');
-    const prevD5 = d5Match[1].split(',').map((s: string) => s.trim()).join(',');
+    const expectedArraysString = extractedTotals.map(t => `[${t}]`).join(':');
+    const expectedInput = `${prevTurn}:${expectedArraysString}`;
+    
     const prevChecksumVal = csMatch[1];
-
-    const expectedInput = `${prevTurn}:[${prevD6}]:[${prevD5}]`;
     const expectedChecksum = simpleHash(expectedInput);
 
     if (prevChecksumVal !== expectedChecksum) {

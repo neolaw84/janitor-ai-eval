@@ -58,8 +58,8 @@ const modes = [
 
 modes.forEach(mode => {
     const modeSource = source.replace(
-        /const compileMode.*?=.*?\/\/ REPLACE_ME/g,
-        `const compileMode = ${mode.value};`
+        /const bundleEvaluationMode.*?=.*?\/\/ REPLACE_ME/g,
+        `const bundleEvaluationMode = ${mode.value};`
     );
     fs.writeFileSync(path.resolve(__dirname, 'dist', mode.file), modeSource, 'utf8');
     console.log(`${mode.file} created successfully.`);

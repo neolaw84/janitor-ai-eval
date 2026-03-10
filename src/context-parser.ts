@@ -57,3 +57,20 @@ export function extractStateFromMessage(content: string): Record<string, string 
 
     return state;
 }
+
+/**
+ * Extracts read-only metadata from the Janitor AI context object.
+ * This is injected into the evaluator.
+ */
+export function extractMetaFromContext(context: any): Readonly<Record<string, any>> {
+    const meta: Record<string, any> = {};
+
+    if (context && context.chat && typeof context.chat.message_count === 'number') {
+        const count = context.chat.message_count;
+        meta.currentTurnIndex = count > 3 ? Math.trunc(count / 2) : count - 1;
+    } else {
+        meta.currentTurnIndex = 0;
+    }
+
+    return Object.freeze(meta);
+}

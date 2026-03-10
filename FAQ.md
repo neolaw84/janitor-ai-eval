@@ -6,10 +6,10 @@
 This project is a small, specialized toolkit that lets Janitor AI bots run simple JavaScript code logic or generate real dice rolls *during* a roleplay. It allows you to create bots that can track health, roll stats, manage inventories, or act as uncompromising Dungeon Masters.
 
 ### How do I use it? Do I need my own server?
-No server is needed! The code is compiled into a single file (`dist/bundle.js` or one of the `dist/dice-replacer-*.js` files) that you paste directly into your Advanced Script box and attach to your bot. When the Janitor AI website loads your bot, it automatically reads the code and runs the logic before it sends the chat to the AI.
+No server is needed! The code is compiled into a single file (`dist/markdown-evaluator.js` or one of the `dist/dice-replacer-*.js` files) that you paste directly into your Advanced Script box and attach to your bot. When the Janitor AI website loads your bot, it automatically reads the code and runs the logic before it sends the chat to the AI.
 
 ### I don't know JavaScript or TypeScript. How do I make use of it?
-You don't need to know how to code to use this! The pre-compiled `.js` files are already included in this GitHub repository. You can simply copy the text from `dist/bundle.js` or a `dist/dice-replacer-*.js` variant and paste it directly into the Advanced Script box and attach to your bot.
+You don't need to know how to code to use this! The pre-compiled `.js` files are already included in this GitHub repository. You can simply copy the text from `dist/markdown-evaluator.js` or a `dist/dice-replacer-*.js` variant and paste it directly into the Advanced Script box and attach to your bot.
 
 For the actual bot development (setting up the rules in your Personality and Scenario), you can:
 1. Upload the files from this GitHub repository to the Google Gemini app (as code) and ask it to write the bot logic for you.
@@ -26,7 +26,10 @@ Some AI models (like DeepSeek) have a hard time following strict scripting rules
 *Note: The "Router" philosophy and the "Dice-Replacer" philosophy are generally two distinct ways to build a bot using this repo. You typically choose exactly one philosophy, but advanced users can learn how to combine them sequentially (see the "Advanced Usage" section in the README).*
 
 ### Can I use both the Javascript evaluator and the dice replacer together?
-Yes, using an advanced sequence. You can copy the contents of `dist/bundle.js` and `dist/dice-replacer-vanilla.js` into your bot's script box sequentially. Depending on which script is placed on top, you can either have the dice roll first (so your javascript can read the random number) or have your javascript evaluate first (and output raw `<<xdy>>` templates for the dice replacer to process last). **Do not use the `dm` or `strict` dice-replacers for this—only the `vanilla` variant.**
+Yes, using an advanced sequence. You can copy the contents of `dist/markdown-evaluator.js` and `dist/dice-replacer-vanilla.js` into your bot's script box sequentially. Depending on which script is placed on top, you can either have the dice roll first (so your javascript can read the random number) or have your javascript evaluate first (and output raw `<<xdy>>` templates for the dice replacer to process last). **Do not use the `dm` or `strict` dice-replacers for this—only the `vanilla` variant.**
+
+### What is the Memory Manager (`dist/memory-manager.js`)?
+The memory manager is an advanced standalone script that dynamically tracks the turn count. When the player exceeds 10 turns (or any multiple of 10), it injects a highly salient background instruction commanding the LLM to output a rich narrative summary of recent events playfully hidden inside the LLM's response. This creates a "poor man's long term memory" that works around the standard middle-out context culling. It plugs directly into the central prompt-injector architecture.
 
 ### What is the `Mode` enum in `dice-replacer.ts`?
 By default, there are 5 different `Mode` enums used to compile 5 variants of the `dice-replacer` pattern.

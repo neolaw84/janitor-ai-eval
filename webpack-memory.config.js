@@ -4,9 +4,9 @@ const path = require('path');
 module.exports = {
     mode: 'none',
     target: ['web', 'es2015'],
-    entry: './src/markdown-evaluator-entry.ts',
+    entry: './src/memory-manager-entry.ts',
     output: {
-        filename: 'markdown-evaluator.js',
+        filename: 'memory-manager.js',
         path: path.resolve(__dirname, 'dist'),
         iife: false,
         environment: {

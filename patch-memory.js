@@ -1,11 +1,11 @@
-// patch-bundle.js
-// Post-build script that runs after Webpack to remove Object.defineProperty calls from markdown-evaluator.js
+// patch-memory.js
+// Post-build script that runs after Webpack to remove Object.defineProperty calls from memory-manager.js
 const fs = require('fs');
 const path = require('path');
 
-const bundlePath = path.resolve(__dirname, 'dist', 'markdown-evaluator.js');
+const bundlePath = path.resolve(__dirname, 'dist', 'memory-manager.js');
 if (!fs.existsSync(bundlePath)) {
-    console.error('markdown-evaluator.js not found, run npm run build first');
+    console.error('memory-manager.js not found, run npm run build:memory first');
     process.exit(1);
 }
 
@@ -44,10 +44,10 @@ source = source.replace(
 // Final check: warn if any defineProperty remains
 const remaining = (source.match(/Object\.defineProperty/g) || []).length;
 if (remaining > 0) {
-    console.warn(`Warning: ${remaining} Object.defineProperty call(s) remain in markdown-evaluator.js`);
+    console.warn(`Warning: ${remaining} Object.defineProperty call(s) remain in memory-manager.js`);
 } else {
-    console.log('Success: No Object.defineProperty calls in markdown-evaluator.js');
+    console.log('Success: No Object.defineProperty calls in memory-manager.js');
 }
 
 fs.writeFileSync(bundlePath, source, 'utf8');
-console.log('markdown-evaluator.js patched successfully.');
+console.log('memory-manager.js patched successfully.');

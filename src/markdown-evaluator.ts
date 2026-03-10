@@ -753,7 +753,7 @@ export class Interpreter {
  * 
  * Supports a safe subset of ES5: arithmetic, strings, logic, arrays, if/for loops.
  */
-export function evaluateMarkdownCodeBlocks(markdown: string, state: Record<string, string | number | boolean> = {}): string {
+export function evaluateMarkdownCodeBlocks(markdown: string, state: Record<string, string | number | boolean> = {}, meta: Readonly<Record<string, any>> = {}): string {
     const rx = /```(?:javascript|js)\r?\n([\s\S]*?)```/gi;
     let result = '';
     let lastIndex = 0;
@@ -776,6 +776,7 @@ export function evaluateMarkdownCodeBlocks(markdown: string, state: Record<strin
             // Inject the SAME state reference for every block so that
             // mutations made by block N are visible to block N+1.
             interpreter['env'].define('state', state);
+            interpreter['env'].define('meta', meta);
 
             interpreter.evaluate(ast);
             console.log("Block Evaluation Success! Logs count:", interpreter.logs.length);

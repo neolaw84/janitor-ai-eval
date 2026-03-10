@@ -35,17 +35,18 @@ Three compiled script patterns are available in `dist/`. In most simple setups, 
 
 | Script | Build command | When to use |
 |--------|--------------|-------------|
-| `dist/bundle.js` | `npm run build` | You want to embed JavaScript blocks directly in your bot's Personality/Scenario and have the evaluator run deterministic game logic before every LLM response. |
+| `dist/markdown-evaluator.js` | `npm run build` | You want to embed JavaScript blocks directly in your bot's Personality/Scenario and have the evaluator run deterministic game logic before every LLM response. |
 | `dist/dice-replacer-dm-simple.js`<br>`dist/dice-replacer-dm-advanced.js` | `npm run build:dice` | You want the LLM to act as a free-form Dungeon Master and invent rules on the fly. Fresh dice rolls are injected automatically; the LLM decides how to apply them. Advanced uses rotating prepends. |
 | `dist/dice-replacer-strict-simple.js`<br>`dist/dice-replacer-strict-advanced.js` | `npm run build:dice` | Same injection mechanism as above, but the LLM is told to follow rules you have written explicitly rather than invent them. |
 | `dist/dice-replacer-vanilla.js` | `npm run build:dice` | Completely vanilla dice replacement without any prepends or rules injected. |
+| `dist/memory-manager.js` | `npm run build:memory` | *Advanced*: Run sequentially with other scripts to periodically instruct the LLM to summarize the narrative context (every 10 turns) to act as long-term memory. |
 
-> `bundle.js` uses the full custom AST evaluator described in [How It Works](#how-it-works-bundlejs) and [The Sandbox](#the-sandbox).  
+> `markdown-evaluator.js` uses the full custom AST evaluator described in [How It Works](#how-it-works-markdown-evaluatorjs) and [The Sandbox](#the-sandbox).  
 > The `dice-replacer` scripts are **standalone alternatives** with an entirely different pipeline—see [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives).
 
 ---
 
-## How It Works (`bundle.js`)
+## How It Works (`markdown-evaluator.js`)
 
 Every time a player sends a message, the script runs **before** the LLM generates its reply:
 
@@ -146,19 +147,31 @@ Instead of making the LLM follow a rigid script, this pattern injects freshly-ro
 **Strengths:** Works well with narrative-heavy or hard-to-control LLMs (e.g. DeepSeek).  
 **Weaknesses:** Less mathematically deterministic than the Script as Authority approach; game logic lives in the LLM's head, not in code.
 
-> **Important:** This philosophy uses a completely different runtime than `bundle.js`. The AST evaluator, `state` object, and JS code blocks described above are **not involved**. See [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives) for the full technical details.
+> **Important:** This philosophy uses a completely different runtime than `markdown-evaluator.js`. The AST evaluator, `state` object, and JS code blocks described above are **not involved**. See [The Dice-Replacer Scripts](#the-dice-replacer-scripts-standalone-alternatives) for the full technical details.
 
 ---
 
 ## The Dice-Replacer Scripts (Standalone Alternatives)
 
-The `dice-replacer-*.js` scripts are **drop-in replacements for `bundle.js`**. They share no code with the AST evaluator. Instead of parsing JS blocks, they:
+The `dice-replacer-*.js` scripts are **drop-in replacements for `markdown-evaluator.js`**. They share no code with the AST evaluator. Instead of parsing JS blocks, they:
 
 1. **Replace `<<xdy>>` placeholders** — The source text (personality, scenario) may contain notation like `<<3d6>>`. The script rolls that dice expression and substitutes the summed total in place before the prompt is assembled.
 2. **Inject `<PRE_COMPUTED_DATA>`** — The script automatically prepends a block of fresh dice arrays and the full DM system instructions to `context.character.personality` at runtime. **Do not add this block or the DM prompts manually to your personality file.**
 3. **Prepend a stateless-API acknowledgement** — The LLM API is stateless and cannot tell whether a dice array is fresh or stale from chat history. The script prepends a rotating "Turn N: I acknowledge these fresh dice, starting at index 0" statement on every call to force the LLM to reset its index tracking.
 
-Currently supported dice types in the pre-computed block: `3d6` and `4d5`.
+### Configuring Dice Arrays
+
+By default, the injection script generates two dice sets: `3d6` (for players) and `4d5` (for NPCs). You can completely customize these! 
+
+Open `src/dice-replacer-entry.ts` before building and locate the **USER CONFIGURATION** block at the top:
+```typescript
+// --- USER CONFIGURATION ---
+const configuredDice: DiceConfig[] = [
+    { count: 3, sides: 6, amountToRoll: 8 },
+    { count: 4, sides: 5, amountToRoll: 8 }
+];
+```
+Change this array to `[{ count: 1, sides: 20, amountToRoll: 10 }]` to switch your bot to a standard d20 system. The script will automatically calculate new checksums and rewrite the DM system instructions to tell the LLM it only has d20s available.
 
 ### Choosing an Engine
 
@@ -186,18 +199,18 @@ For the strict engine, you must manually seed the top of `first_message.md` with
 
 ## Advanced Usage: Combining Scripts
 
-While the three main script philosophies are typically used individually, advanced bot creators can chain `bundle.js` (the AST evaluator) and `dice-replacer-vanilla.js` (the raw dice parser) in the Bot update screen in the Script Edit view. Depending on the order you chain them, you dictate the execution priority:
+While the three main script philosophies are typically used individually, advanced bot creators can chain `markdown-evaluator.js` (the AST evaluator) and `dice-replacer-vanilla.js` (the raw dice parser) in the Bot update screen in the Script Edit view. Depending on the order you chain them, you dictate the execution priority:
 
 ### Pattern A: `dice-replacer-vanilla.js` top -> `bundle.js` bottom
 
 In this pattern, the dice-replacer runs **first**. It scans the entire prompt and replaces any `<<xdy>>` placeholders with hard integers.
 
-*Afterward*, `bundle.js` executes. Because the dice have already been replaced, your AST JavaScript logic blocks can actually read those hard numbers from the code block, execute state logic on them internally, and determine the output. 
+*Afterward*, `markdown-evaluator.js` executes. Because the dice have already been replaced, your AST JavaScript logic blocks can actually read those hard numbers from the code block, execute state logic on them internally, and determine the output. 
 
 **Example:**
 If you have a block `var d = <<3d6>>; if(d > 10){ console.log("Hit!"); }`, the dice-replacer evaluates it to `var d = 14; if(d > 10)...` and the AST parsed logic subsequently sees and executes `var d = 14`.
 
-### Pattern B: `bundle.js` top -> `dice-replacer-vanilla.js` bottom
+### Pattern B: `markdown-evaluator.js` top -> `dice-replacer-vanilla.js` bottom
 
 In this pattern, the AST evaluator runs **first**. It executes all game logic and evaluates all `if/else` conditions without any inherent dice math. However, the `console.log()` statements it prints can be formatted to output `<<xdy>>` tags.
 
@@ -206,7 +219,7 @@ In this pattern, the AST evaluator runs **first**. It executes all game logic an
 **Example:**
 Your JS code `if (state.hp < 10) console.log("Took <<3d6>> damage!");` prints raw tags. The dice-replacer then intercepts that and turns it into `Took 12 damage!` for the LLM to narrate.
 
-> **Important:** Only combine `dist/bundle.js` with `dist/dice-replacer-vanilla.js`. Do not combine `bundle.js` with the `dm` or `strict` engine variables, as their auto-prepends and system instructions will conflict entirely with the AST paradigm.
+> **Important:** Only combine `dist/markdown-evaluator.js` with `dist/dice-replacer-vanilla.js`. Do not combine `markdown-evaluator.js` with the `dm` or `strict` engine variables, as their auto-prepends and system instructions will conflict entirely with the AST paradigm.
 
 ---
 
@@ -286,7 +299,7 @@ This repository ships two agent skills under `.agent/skills/`. An agentic IDE co
 
 ### Skill 1: `janitor-ai-bot-development` — Script as Authority
 
-**Use when:** You want `dist/bundle.js` and deterministic, code-driven game logic.
+**Use when:** You want `dist/markdown-evaluator.js` and deterministic, code-driven game logic.
 
 The skill activates whenever you ask the agent to **create, modify, or structure a Janitor AI bot**.
 
@@ -411,10 +424,11 @@ npm install
 
 | Command | Output | Use for |
 |---------|--------|---------|
-| `npm run build` | `dist/bundle.js` | "LLM as Router, Script as Authority" — the full AST evaluator |
+| `npm run build` | `dist/markdown-evaluator.js` | "LLM as Router, Script as Authority" — the full AST evaluator |
 | `npm run build:dice` | `dist/dice-replacer-dm-advanced.js`<br>`dist/dice-replacer-dm-simple.js` | "LLM Free Reign / DM" — standalone dice-injection, DM invents rules |
 | `npm run build:dice` | `dist/dice-replacer-strict-advanced.js`<br>`dist/dice-replacer-strict-simple.js` | "LLM Free Reign / Strict Narrator" — standalone dice-injection, rules written by you |
 | `npm run build:dice` | `dist/dice-replacer-vanilla.js` | "Vanilla" — standalone dice-injection only, no rules injected |
+| `npm run build:memory`| `dist/memory-manager.js` | Periodic summary instructions for long-term memory handling |
 
 Paste the contents of the appropriate output file into the Advanced Script box in Janitor AI.
 
