@@ -857,22 +857,21 @@ function evaluateMarkdownCodeBlocks(markdown, state = {}, meta = {}) {
 /***/ },
 
 /***/ "./src/memory-manager.ts"
-(__unused_webpack_module, exports, __webpack_require__) {
+(__unused_webpack_module, exports) {
 
 
-exports['__esModule'] = true;
-exports.injectPeriodicSummary = injectPeriodicSummary;
 /**
  * src/memory-manager.ts
- * Injects memory and summarization instructions into the LLM prompt.
+ * Generates the memory payload string, but DOES NOT inject it.
+ * The entry point is responsible for gathering all payloads and injecting them together.
  */
-const prompt_injector_1 = __webpack_require__("./src/prompt-injector.ts");
-function injectPeriodicSummary(personality, currentTurnIndex, interval = 10, memoryPrompt = "[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last 10 turns and display the summary clearly at the end of your response.") {
+exports['__esModule'] = true;
+exports.generatePeriodicSummaryPayload = generatePeriodicSummaryPayload;
+function generatePeriodicSummaryPayload(currentTurnIndex, interval = 10, memoryPrompt = "[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last 10 turns and display the summary clearly at the end of your response.") {
     if (currentTurnIndex > 0 && currentTurnIndex % interval === 0) {
-        let updatedPersonality = (0, prompt_injector_1.getOrInitializeSystemInstructionBlock)(personality);
-        return (0, prompt_injector_1.injectIntoBlock)(updatedPersonality, prompt_injector_1.INJECT_ANCHOR_MEMORY, memoryPrompt);
+        return memoryPrompt;
     }
-    return personality;
+    return undefined;
 }
 
 
@@ -882,43 +881,43 @@ function injectPeriodicSummary(personality, currentTurnIndex, interval = 10, mem
 (__unused_webpack_module, exports) {
 
 
-/**
- * src/prompt-injector.ts
- * Manages a cohesive, single CRITICAL SYSTEM INSTRUCTION block at the
- * top of the context personality string to ensure LLM salience.
- */
+// src/prompt-injector.ts
+// Manages a cohesive, single CRITICAL SYSTEM INSTRUCTION block at the 
+// top of the context personality string to ensure LLM salience.
 exports['__esModule'] = true;
-exports.INJECT_ANCHOR_DICE = exports.INJECT_ANCHOR_MEMORY = void 0;
-exports.getOrInitializeSystemInstructionBlock = getOrInitializeSystemInstructionBlock;
-exports.injectIntoBlock = injectIntoBlock;
+exports.injectSystemInstructionBlock = injectSystemInstructionBlock;
 const BLOCK_START = "**[START OF CRITICAL SYSTEM INSTRUCTION BLOCK]**";
 const BLOCK_END = "**[END OF CRITICAL SYSTEM INSTRUCTION BLOCK]**";
-exports.INJECT_ANCHOR_MEMORY = "<!-- INJECT_MEMORY -->";
-exports.INJECT_ANCHOR_DICE = "<!-- INJECT_DICE -->";
-const INITIAL_BLOCK_SKELETON = `
-${BLOCK_START}
-${exports.INJECT_ANCHOR_MEMORY}
-${exports.INJECT_ANCHOR_DICE}
-${BLOCK_END}
-`;
 /**
  * Searches the personality string for the shared critical system block.
- * If not found, prepends the block skeleton to the top of the string.
+ * If found, it removes the old block. It then constructs a fresh block
+ * containing the provided payloads (if any) and prepends it to the top.
  */
-function getOrInitializeSystemInstructionBlock(personality) {
-    if (personality.indexOf(BLOCK_START) !== -1 && personality.indexOf(BLOCK_END) !== -1) {
-        return personality;
+function injectSystemInstructionBlock(personality, memoryPayload, dicePayload) {
+    let cleanPersonality = personality;
+    // Strip out the old block if it exists
+    const startIndex = cleanPersonality.indexOf(BLOCK_START);
+    const endIndex = cleanPersonality.indexOf(BLOCK_END);
+    if (startIndex !== -1 && endIndex !== -1) {
+        // Remove everything from BLOCK_START to BLOCK_END (plus the length of BLOCK_END itself)
+        cleanPersonality = cleanPersonality.substring(0, startIndex) + cleanPersonality.substring(endIndex + BLOCK_END.length);
+        cleanPersonality = cleanPersonality.trim();
     }
-    return INITIAL_BLOCK_SKELETON + "\n" + personality;
-}
-/**
- * Replaces a specific injection anchor within the personality string with the provided content.
- */
-function injectIntoBlock(personality, anchor, content) {
-    if (personality.indexOf(anchor) === -1) {
-        return personality;
+    // If neither payload exists, do not inject anything
+    if (!memoryPayload && !dicePayload) {
+        return cleanPersonality;
     }
-    return personality.replace(anchor, content);
+    // Build the new block dynamically
+    let newBlock = `\n${BLOCK_START}\n`;
+    if (memoryPayload) {
+        newBlock += `${memoryPayload}\n`;
+    }
+    if (dicePayload) {
+        newBlock += `${dicePayload}\n`;
+    }
+    newBlock += `${BLOCK_END}\n\n`;
+    // Prepend the fresh block to the clean personality
+    return newBlock + cleanPersonality;
 }
 
 
@@ -960,6 +959,7 @@ exports['__esModule'] = true;
 const markdown_evaluator_1 = __webpack_require__("./src/markdown-evaluator.ts");
 const context_parser_1 = __webpack_require__("./src/context-parser.ts");
 const memory_manager_1 = __webpack_require__("./src/memory-manager.ts");
+const prompt_injector_1 = __webpack_require__("./src/prompt-injector.ts");
 let injectedState = {};
 if (typeof context !== 'undefined' && context.chat && context.chat.last_messages && Array.isArray(context.chat.last_messages) && context.chat.last_messages.length >= 2) {
     const targetMsg = context.chat.last_messages[context.chat.last_messages.length - 2];
@@ -972,10 +972,25 @@ if (typeof context !== 'undefined' && context.character) {
     let newPersonality = context.character.personality;
     let newScenario = context.character.scenario;
     if (newPersonality) {
-        newPersonality = (0, memory_manager_1.injectPeriodicSummary)(newPersonality, injectedMeta.currentTurnIndex);
-        // Ensure unused HTML comment anchors from prompt-injector are wiped from final output 
-        // to prevent LLM confusion if they are left dangling.
-        newPersonality = newPersonality.replace(/<!-- INJECT_[\w]+ -->/g, '');
+        // Look for an existing dice payload from a chained dice-replacer script
+        let existingDicePayload = undefined;
+        const blockMatch = newPersonality.match(/\*\*\[START OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*\n([\s\S]*?)\n\*\*\[END OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*/);
+        if (blockMatch) {
+            const blockContent = blockMatch[1];
+            if (blockContent.includes('<PRE_COMPUTED_DATA>')) {
+                // Extract just the dive payload
+                const diceMatch = blockContent.match(/(<PRE_COMPUTED_DATA>[\s\S]*?<\/PRE_COMPUTED_DATA>\s*.*?(?:index 0|references\/debug).*?\n)/m);
+                if (diceMatch) {
+                    existingDicePayload = diceMatch[0].trim();
+                }
+                else if (!blockContent.includes('[MEMORY MANAGER]')) {
+                    // fallback if regex fails
+                    existingDicePayload = blockContent.trim();
+                }
+            }
+        }
+        const memoryPayload = (0, memory_manager_1.generatePeriodicSummaryPayload)(injectedMeta.currentTurnIndex);
+        newPersonality = (0, prompt_injector_1.injectSystemInstructionBlock)(newPersonality, memoryPayload, existingDicePayload);
         newPersonality = (0, markdown_evaluator_1.evaluateMarkdownCodeBlocks)(newPersonality, injectedState, injectedMeta);
         context.character.personality = newPersonality;
     }

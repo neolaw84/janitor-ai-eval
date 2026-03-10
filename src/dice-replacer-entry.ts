@@ -6,8 +6,8 @@ import {
     buildCriticalSystemInstruction,
     PRECOMPUTED_DATA_REMINDER
 } from "./dice-constants";
-import { injectIntoBlock, INJECT_ANCHOR_DICE } from "./prompt-injector";
-import { injectPeriodicSummary } from "./memory-manager";
+import { injectSystemInstructionBlock } from "./prompt-injector";
+import { generatePeriodicSummaryPayload } from "./memory-manager";
 
 const enum Mode {
     Vanilla = 0,
@@ -205,12 +205,33 @@ function evaluateInlineDiceNotations(text: string): string {
 let updatedPersonalityText = context.character.personality;
 
 if (shouldInjectSystemInstructions) {
-    updatedPersonalityText = injectPeriodicSummary(updatedPersonalityText, currentTurnIndex);
-    updatedPersonalityText = injectIntoBlock(updatedPersonalityText, INJECT_ANCHOR_DICE, criticalSystemInstructionPayload);
-}
+    // We might be running after memory-manager. Look for an existing memory payload.
+    let existingMemoryPayload: string | undefined = undefined;
+    const blockMatch = updatedPersonalityText.match(/\*\*\[START OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*\n([\s\S]*?)\n\*\*\[END OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*/);
+    if (blockMatch) {
+        const blockContent = blockMatch[1];
+        if (blockContent.includes('[MEMORY MANAGER]')) {
+            // Extract just the memory manager line(s)
+            const memoryMatch = blockContent.match(/\[MEMORY MANAGER\][\s\S]*?(?=\n<PRE_COMPUTED_DATA>|$)/);
+            if (memoryMatch) {
+                existingMemoryPayload = memoryMatch[0].trim();
+            }
+        }
+    }
 
-// Clean up any remaining injection anchors so they don't pollute the prompt
-updatedPersonalityText = updatedPersonalityText.replace(/<!-- INJECT_[\w]+ -->/g, '');
+    // Since this is the dice-replacer, it's possible it is being run standalone (without memory-manager chained in the UI).
+    // Let's generate a default memory payload just in case it hits the interval, but ONLY if we don't already have one 
+    // from a chained memory-manager execution.
+    if (!existingMemoryPayload) {
+        existingMemoryPayload = generatePeriodicSummaryPayload(currentTurnIndex);
+    }
+    
+    updatedPersonalityText = injectSystemInstructionBlock(
+        updatedPersonalityText, 
+        existingMemoryPayload, 
+        criticalSystemInstructionPayload
+    );
+}
 
 context.character.personality = evaluateInlineDiceNotations(updatedPersonalityText);
 context.character.scenario = PRECOMPUTED_DATA_REMINDER + "\n" + evaluateInlineDiceNotations(context.character.scenario);

@@ -1,40 +1,50 @@
-/**
- * src/prompt-injector.ts
- * Manages a cohesive, single CRITICAL SYSTEM INSTRUCTION block at the 
- * top of the context personality string to ensure LLM salience.
- */
+// src/prompt-injector.ts
+// Manages a cohesive, single CRITICAL SYSTEM INSTRUCTION block at the 
+// top of the context personality string to ensure LLM salience.
 
 const BLOCK_START = "**[START OF CRITICAL SYSTEM INSTRUCTION BLOCK]**";
 const BLOCK_END = "**[END OF CRITICAL SYSTEM INSTRUCTION BLOCK]**";
 
-export const INJECT_ANCHOR_MEMORY = "<!-- INJECT_MEMORY -->";
-export const INJECT_ANCHOR_DICE = "<!-- INJECT_DICE -->";
-
-const INITIAL_BLOCK_SKELETON = `
-${BLOCK_START}
-${INJECT_ANCHOR_MEMORY}
-${INJECT_ANCHOR_DICE}
-${BLOCK_END}
-`;
-
 /**
  * Searches the personality string for the shared critical system block. 
- * If not found, prepends the block skeleton to the top of the string.
+ * If found, it removes the old block. It then constructs a fresh block
+ * containing the provided payloads (if any) and prepends it to the top.
  */
-export function getOrInitializeSystemInstructionBlock(personality: string): string {
-    if (personality.indexOf(BLOCK_START) !== -1 && personality.indexOf(BLOCK_END) !== -1) {
-        return personality;
-    }
-    return INITIAL_BLOCK_SKELETON + "\n" + personality;
-}
+export function injectSystemInstructionBlock(
+    personality: string, 
+    memoryPayload?: string, 
+    dicePayload?: string
+): string {
+    let cleanPersonality = personality;
 
-/**
- * Replaces a specific injection anchor within the personality string with the provided content.
- */
-export function injectIntoBlock(personality: string, anchor: string, content: string): string {
-    if (personality.indexOf(anchor) === -1) {
-        return personality;
+    // Strip out the old block if it exists
+    const startIndex = cleanPersonality.indexOf(BLOCK_START);
+    const endIndex = cleanPersonality.indexOf(BLOCK_END);
+
+    if (startIndex !== -1 && endIndex !== -1) {
+        // Remove everything from BLOCK_START to BLOCK_END (plus the length of BLOCK_END itself)
+        cleanPersonality = cleanPersonality.substring(0, startIndex) + cleanPersonality.substring(endIndex + BLOCK_END.length);
+        cleanPersonality = cleanPersonality.trim();
+    }
+
+    // If neither payload exists, do not inject anything
+    if (!memoryPayload && !dicePayload) {
+        return cleanPersonality;
+    }
+
+    // Build the new block dynamically
+    let newBlock = `\n${BLOCK_START}\n`;
+    
+    if (memoryPayload) {
+        newBlock += `${memoryPayload}\n`;
     }
     
-    return personality.replace(anchor, content);
+    if (dicePayload) {
+        newBlock += `${dicePayload}\n`;
+    }
+
+    newBlock += `${BLOCK_END}\n\n`;
+
+    // Prepend the fresh block to the clean personality
+    return newBlock + cleanPersonality;
 }

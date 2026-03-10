@@ -1,6 +1,7 @@
 import { evaluateMarkdownCodeBlocks } from './markdown-evaluator';
 import { extractStateFromMessage, extractMetaFromContext } from './context-parser';
-import { injectPeriodicSummary } from './memory-manager';
+import { generatePeriodicSummaryPayload } from './memory-manager';
+import { injectSystemInstructionBlock } from './prompt-injector';
 
 declare var context: any;
 
@@ -18,11 +19,25 @@ if (typeof context !== 'undefined' && context.character) {
     let newScenario = context.character.scenario;
 
     if (newPersonality) {
-        newPersonality = injectPeriodicSummary(newPersonality, injectedMeta.currentTurnIndex);
-        
-        // Ensure unused HTML comment anchors from prompt-injector are wiped from final output 
-        // to prevent LLM confusion if they are left dangling.
-        newPersonality = newPersonality.replace(/<!-- INJECT_[\w]+ -->/g, '');
+        // Look for an existing dice payload from a chained dice-replacer script
+        let existingDicePayload: string | undefined = undefined;
+        const blockMatch = newPersonality.match(/\*\*\[START OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*\n([\s\S]*?)\n\*\*\[END OF CRITICAL SYSTEM INSTRUCTION BLOCK\]\*\*/);
+        if (blockMatch) {
+            const blockContent = blockMatch[1];
+            if (blockContent.includes('<PRE_COMPUTED_DATA>')) {
+                // Extract just the dive payload
+                const diceMatch = blockContent.match(/(<PRE_COMPUTED_DATA>[\s\S]*?<\/PRE_COMPUTED_DATA>\s*.*?(?:index 0|references\/debug).*?\n)/m);
+                if (diceMatch) {
+                    existingDicePayload = diceMatch[0].trim();
+                } else if (!blockContent.includes('[MEMORY MANAGER]')) {
+                    // fallback if regex fails
+                    existingDicePayload = blockContent.trim();
+                }
+            }
+        }
+
+        const memoryPayload = generatePeriodicSummaryPayload(injectedMeta.currentTurnIndex);
+        newPersonality = injectSystemInstructionBlock(newPersonality, memoryPayload, existingDicePayload);
         
         newPersonality = evaluateMarkdownCodeBlocks(newPersonality, injectedState, injectedMeta);
         context.character.personality = newPersonality;

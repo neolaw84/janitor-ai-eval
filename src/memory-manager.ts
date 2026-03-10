@@ -1,19 +1,17 @@
 /**
  * src/memory-manager.ts
- * Injects memory and summarization instructions into the LLM prompt.
+ * Generates the memory payload string, but DOES NOT inject it.
+ * The entry point is responsible for gathering all payloads and injecting them together.
  */
-import { getOrInitializeSystemInstructionBlock, injectIntoBlock, INJECT_ANCHOR_MEMORY } from "./prompt-injector";
 
-export function injectPeriodicSummary(
-    personality: string, 
+export function generatePeriodicSummaryPayload(
     currentTurnIndex: number,
     interval: number = 10,
     memoryPrompt: string = "[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last 10 turns and display the summary clearly at the end of your response."
-): string {
+): string | undefined {
     if (currentTurnIndex > 0 && currentTurnIndex % interval === 0) {
-        let updatedPersonality = getOrInitializeSystemInstructionBlock(personality);
-        return injectIntoBlock(updatedPersonality, INJECT_ANCHOR_MEMORY, memoryPrompt);
+        return memoryPrompt;
     }
     
-    return personality;
+    return undefined;
 }
