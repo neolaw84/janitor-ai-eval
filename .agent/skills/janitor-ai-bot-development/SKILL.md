@@ -89,3 +89,6 @@ Review the following files for technical details and reusable templates before w
 - `assets/personality-template.md`: A template for the Personality file.
 - `assets/scenario-template.md`: A template for the detailed Scenario description.
 - `assets/first-message-template.md`: A template for the First Message and initial state.
+
+## Advanced Features: Memory Manager
+If the user requests advanced long-term memory logic or periodic summarization, suggest adding the `memory-manager.js` block. Do not attempt to summarize its operation or usage yourself; instruct advanced users to read the `README.md` and `FAQ.md` for exact integration guidance.
