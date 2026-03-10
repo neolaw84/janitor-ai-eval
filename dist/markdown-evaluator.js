@@ -867,11 +867,10 @@ exports.injectPeriodicSummary = injectPeriodicSummary;
  * Injects memory and summarization instructions into the LLM prompt.
  */
 const prompt_injector_1 = __webpack_require__("./src/prompt-injector.ts");
-function injectPeriodicSummary(personality, currentTurnIndex) {
-    if (currentTurnIndex > 0 && currentTurnIndex % 10 === 0) {
+function injectPeriodicSummary(personality, currentTurnIndex, interval = 10, memoryPrompt = "[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last 10 turns and display the summary clearly at the end of your response.") {
+    if (currentTurnIndex > 0 && currentTurnIndex % interval === 0) {
         let updatedPersonality = (0, prompt_injector_1.getOrInitializeSystemInstructionBlock)(personality);
-        const memoryInstruction = `[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last 10 turns and display the summary clearly at the end of your response.`;
-        return (0, prompt_injector_1.injectIntoBlock)(updatedPersonality, prompt_injector_1.INJECT_ANCHOR_MEMORY, memoryInstruction);
+        return (0, prompt_injector_1.injectIntoBlock)(updatedPersonality, prompt_injector_1.INJECT_ANCHOR_MEMORY, memoryPrompt);
     }
     return personality;
 }

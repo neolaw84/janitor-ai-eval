@@ -221,6 +221,23 @@ Your JS code `if (state.hp < 10) console.log("Took <<3d6>> damage!");` prints ra
 
 > **Important:** Only combine `dist/markdown-evaluator.js` with `dist/dice-replacer-vanilla.js`. Do not combine `markdown-evaluator.js` with the `dm` or `strict` engine variables, as their auto-prepends and system instructions will conflict entirely with the AST paradigm.
 
+### Pattern C: Incorporating `memory-manager.js`
+
+If you are using the `dist/memory-manager.js` compiled script, it should be appended at the end of your workflow chaining. This script waits until turn `N` (default: 10), and then prepends an instruction to the LLM's system prompt to summarize the narrative history.
+
+#### Configuring the Memory Manager
+
+By default, the injection script triggers every `10` turns and uses a generic summary prompt. You can customize the interval and the prompt!
+
+Open `src/memory-manager-entry.ts` before building and locate the **USER CONFIGURATION** block at the top:
+```typescript
+// --- USER CONFIGURATION ---
+const MEMORY_INTERVAL = 10;
+const MEMORY_PROMPT = \`[MEMORY MANAGER]: The narrative context window is getting long. Summarize the key narrative events of the last \${MEMORY_INTERVAL} turns and display the summary clearly at the end of your response.\`;
+// --------------------------
+```
+Change the interval to 20, or update the prompt to specify exactly what the LLM should care about (e.g., _"Summarize the development of the romance between {{user}} and {{char}}"_). Run `npm run build:memory` to save your changes.
+
 ---
 
 ## Building a Bot
