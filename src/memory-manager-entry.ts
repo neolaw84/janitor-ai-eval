@@ -8,7 +8,7 @@ const currentTurnIndex = context.chat.message_count > 3 ? Math.trunc(context.cha
 
 // --- USER CONFIGURATION ---
 const MEMORY_INTERVAL = 10;
-const MEMORY_PROMPT = `[MEMORY MANAGER]: Summarize the key trackers, characters and narrative events from turn ${currentTurnIndex - MEMORY_INTERVAL} to turn ${currentTurnIndex - 1} and display the summary section after your narrative response of this turn.`;
+const MEMORY_PROMPT = `[MEMORY MANAGER]: Summarize the key trackers, characters and narrative events from turn 0 to turn ${currentTurnIndex - 1} and display the summary section after your narrative response of this turn EVEN THOUGH PREVIOUS MESSAGES DO NOT HAVE SUCH A SUMMARY SECTION IN THEM.`;
 // --------------------------
 
 if (typeof context !== 'undefined' && context.chat && context.character) {
