@@ -96,4 +96,27 @@ describe('evaluateMarkdownCodeBlocks', () => {
         const md = '```javascript\nlet a = {"x": 1, "y": 2};\nconsole.log(a.x !== undefined);\n```';
         expect(evaluateMarkdownCodeBlocks(md)).toBe("");
     });
+
+    it('should correctly handle general property lookup with spaces and fallback logic', () => {
+        const state = { "Primary Key": "Value A" };
+        const md = "```js\n" +
+            "var val = (state[\"Primary Key\"] || state[\"Primary_Key\"] || \"default\").toString().toLowerCase();\n" +
+            "console.log(val);\n" +
+            "```";
+        expect(evaluateMarkdownCodeBlocks(md, state)).toBe("value a");
+
+        const state2 = { "Primary_Key": "Value B" };
+        expect(evaluateMarkdownCodeBlocks(md, state2)).toBe("value b");
+
+        const state3 = { "Other": "X" };
+        expect(evaluateMarkdownCodeBlocks(md, state3)).toBe("default");
+    });
+
+    it('should handle numeric and boolean values via .toString() in the lookup chain', () => {
+        const state = { "Num": 123, "Bool": true };
+        const md = "```js\n" +
+            "console.log((state.Num || 0).toString(), (state.Bool || false).toString());\n" +
+            "```";
+        expect(evaluateMarkdownCodeBlocks(md, state)).toBe("123 true");
+    });
 });

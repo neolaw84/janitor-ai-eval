@@ -74,13 +74,22 @@ Janitor AI provides built-in text macros to ensure dynamic character referencing
 *   `{{poss_p}}` - Plural possessive pronoun for user (his/hers/theirs).
 *   `{{ref}}` - Reflexive pronoun for user (himself/herself/themselves).
 
-### 7. Edge Cases to Avoid
-*   Do NOT use complex ES6+ features. Stick to ES2015/ES5 constructs compatible with the custom AST parser (arithmetic, simple if/else, for loops, arrays).
-*   **No `function` keyword**: The custom lexer cannot parse `state.myMacro = function() {}`. It creates trailing orphan semicolons. Manually inline all logic chunks instead.
-*   **No Ternaries (`? :`)**: The sandbox will crash with `Unexpected character: ?`. Use standard `if/else` statements natively.
-*   **No Semicolons inside Strings**: Putting `;` within a `console.log("...");` literal crashes the simple token parser.
-*   Do NOT attempt to use `Array.prototype.includes` or other modern built-ins; use `indexOf() !== -1` instead.
-*   Do NOT use external APIs (`fetch`, etc.). They are excluded from the sandbox.
+### 7. Custom AST Evaluator Edge Cases & Best Practices
+*   **Syntax Limits**: Do NOT use complex ES6+ features. Stick to basic arithmetic, simple `if/else`, `for` loops, and arrays.
+*   **No `function` keyword**: The custom lexer cannot parse `state.myMacro = function() {}` without trailing orphan semicolons. Inline all logic.
+*   **No Object Literals**: The sandbox grammar rejects inline object literals (`{ key: value }`). Rely entirely on primitives and the injected `state` object.
+*   **No `typeof` Keyword**: The Evaluator lacks `typeof`. Use truthiness or logical ORs to check for existence.
+*   **Robust Fallbacks**: The LLM might use inconsistent keys (e.g., `Location Type` vs `Location_Type`). Always use logical ORs (`||`) to handle missing state: `var loc = state["Location Type"] || state["Location_Type"] || "none";`
+*   **Type Safety**: State strings can unpredictably parse as numbers or booleans. Chain `.toString().toLowerCase()` to guarantee string case-insensitivity: `var enc = (state["Encounter"] || "none").toString().toLowerCase();`
+*   **Forbidden Tokens**: No ternaries (`? :`) and no semicolons inside string literals. `Array.prototype.includes` is unavailable (use `indexOf() !== -1`).
+*   **Network Access**: Do NOT use external APIs (`fetch`, etc.). They are excluded from the sandbox.
+
+### 8. Universal Prompt Granularity & Control Heuristics
+When the custom JavaScript generates `console.log()` instructions, immense detail is required to ensure the LLM obeys them deterministically across all model tiers:
+*   **Deterministic Mapping:** Do not ask the LLM to "generate" or calculate mechanics/stats. Provide explicitly mapped lookup tables and commands (Consume roll -> Check table -> Assign results) so the LLM simply *reads* pre-computed data.
+*   **Instructional Bracing:** Explicitly dictate what *not* to do (e.g., "They do NOT approach {{user}}") to override the LLM's default training (like generic helpfulness or romance tropes).
+*   **Context-Based Idempotency:** Rather than tracking complex "already spawned" flags via JavaScript variables, write instructions that command the LLM to inspect the conversation history independently (e.g., "If NPCs are already present: Do NOT consume dice...").
+*   **Procedural Stopping Rules:** Every logic branch must conclude with a definitive turn-management instruction (e.g., "End the turn and let the player respond.") to prevent the LLM from narrating the player's reactions or breaking the roleplay mechanics loop.
 
 ## References and Templates
 
